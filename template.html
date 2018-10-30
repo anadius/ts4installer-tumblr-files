@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    {block:Hidden}
+    <meta name="color:Navbar Background" content="#57af2e">
+    <meta name="select:Navbar Style" content="dark" title="Dark">
+    <meta name="select:Navbar Style" content="light" title="Light">
+    <meta name="image:Background Image" content="">
+    <meta name="color:Links Color" content="#57af2e">
+    <meta name="color:Active Links Color" content="#3e7e20">
+
+    <meta name="if:Enable Jump Pagination" content="1">
+    <meta name="text:Comma separated keywords" content="">
+    {/block:Hidden}
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+    <link rel="shortcut icon" href="{Favicon}">
+    <link rel="alternate" type="application/rss+xml" href="{RSS}">
+
+    <title>{Title}{block:SearchPage} ({lang:Search results for SearchQuery}){/block:SearchPage}{block:PermalinkPage}{block:PostSummary} — {PostSummary}{/block:PostSummary}{/block:PermalinkPage}</title>
+    {block:Description}
+    <meta name="description" content="{MetaDescription}">
+    {/block:Description}
+    <meta name="keywords" content="{text:Comma separated keywords}">
+
+    <style>
+
+body {
+  background-image: url({image:Background Image});
+  background-size: cover;
+}
+
+.navbar {
+  background-color: {color:Navbar Background};
+  border-bottom-color: {color:Active Links Color} !important;
+}
+
+a, .page-link { color: {color:Links Color}; }
+a:hover, .page-link:hover { color: {color:Active Links Color}; }
+.page-item.active .page-link {
+  background-color: {color:Links Color};
+  border-color: {color:Links Color};
+}
+.dropdown-item.active, .dropdown-item:active { background-color: {color:Links Color}; }
+.page-link { border-color: {color:Active Links Color} !important; }
+.card { border-color: {color:Active Links Color}; }
+
+/* remove padding from last element of the post */
+.card-body > :last-child { margin-bottom: 0; }
+
+.card-body img { max-width: 100%; }
+
+.tmblr-iframe--unified-controls {
+  margin: -7px 0;
+  top: -100px;
+}
+nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) {
+  .navbar-expand-sm .tmblr-iframe--unified-controls.tmblr-iframe--loaded { order: 1; }
+}
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+  .navbar-expand-md .tmblr-iframe--unified-controls.tmblr-iframe--loaded { order: 1; }
+}
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+  .navbar-expand-lg .tmblr-iframe--unified-controls.tmblr-iframe--loaded { order: 1; }
+}
+/* Extra large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) {
+  .navbar-expand-xl .tmblr-iframe--unified-controls.tmblr-iframe--loaded { order: 1; }
+}
+
+/* Custom CSS */
+{CustomCSS}
+
+    </style>
+  </head>
+  <body>
+
+<nav class="navbar navbar-expand-lg navbar-{select:Navbar Style} py-3 px-4 border-bottom">
+  {block:ShowTitle}
+  <a class="navbar-brand" href="/">
+    {block:ShowAvatar}
+    <img src="{PortraitURL-30}" width="30" height="30" class="d-inline-block align-top" alt="">
+    {/block:ShowAvatar}
+    {Title}
+  </a>
+  {/block:ShowTitle}
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link {block:HomePage}active{/block:HomePage}" href="/">{lang:Posts}</a>
+      </li>
+      {block:HasPages}
+        {block:Pages}
+        <li class="nav-item">
+          <a class="nav-link {CurrentState} {ExternalState}" href="{URL}">{Label}</a>
+        </li>
+        {/block:Pages}
+      {/block:HasPages}
+    </ul>
+  </div>
+</nav>
+
+<script>
+// create dropdowns for links in format "Dropdown Name/Link Name"
+(() => {
+  function setAttributes(el, attrs) {
+    Object.keys(attrs).forEach(key => el.setAttribute(key, attrs[key]));
+  }
+
+  function createDropdown(parent, title) {
+    let id = 'navbarDropdownMenu' + title;
+
+    let button = document.createElement('a');
+    setAttributes(button, {'class': 'nav-link dropdown-toggle', href: '#', id: id, role: 'button', 'data-toggle': 'dropdown', 'aria-haspopup': 'true', 'aria-expanded': 'false'});
+    button.innerHTML = title;
+
+    let menu = document.createElement('div');
+    setAttributes(menu, {'class': 'dropdown-menu', 'aria-labelledby': id});
+
+    parent.classList.add('dropdown');
+    parent.appendChild(button);
+    parent.appendChild(menu);
+
+    return menu;
+  }
+
+  const dropdowns = {};
+  for(let link of document.querySelectorAll('.nav-link')) {
+    // add Bootstrap's class for active page
+    if(link.classList.contains('current-page')) {
+      link.classList.remove('current-page');
+      link.classList.add('active');
+    }
+
+    let splitted = link.innerText.split('/');
+    if(splitted.length == 1)
+      continue;
+
+    let dropdownTitle = splitted.shift();
+    let newTitle = splitted.join('/');
+
+    if(typeof dropdowns[dropdownTitle] == 'undefined')
+      dropdowns[dropdownTitle] = createDropdown(link.parentNode, dropdownTitle);
+
+    link.innerHTML = newTitle;
+    link.classList.remove('nav-link');
+    link.classList.add('dropdown-item');
+    dropdowns[dropdownTitle].appendChild(link);
+  }
+})();
+</script>
+
+<div class="container">
+  <div class="row">
+    <div class="col">
+
+      {block:Posts}
+      <div class="card my-4">
+        {block:Date}
+        <div class="card-header">
+          <a href="{Permalink}">Posted {TimeAgo}</a>
+        </div>
+        {/block:Date}
+
+        {block:Text}
+        <div class="card-body">
+          {block:Title}
+          <h3 class="card-title">{Title}</h3>
+          {/block:Title}
+          {Body}
+        </div>
+        {/block:Text}
+      </div>
+      {/block:Posts}
+
+      {block:Pagination}
+      <nav class="my-4" aria-label="posts pagination">
+        <ul class="pagination justify-content-center">
+          {block:PreviousPage}
+          <li class="page-item"><a class="page-link" href="{PreviousPage}">&larr; Newer</a></li>
+          {/block:PreviousPage}
+
+          {block:IfEnableJumpPagination}
+            {block:JumpPagination length="10"}
+              {block:CurrentPage}
+                <li class="page-item active"><span class="page-link">{PageNumber}</span></li>
+              {/block:CurrentPage}
+              {block:JumpPage}
+                <li class="page-item"><a class="page-link" href="{URL}">{PageNumber}</a></li>
+              {/block:JumpPage}
+            {/block:JumpPagination}
+          {/block:IfEnableJumpPagination}
+
+          {block:NextPage}
+          <li class="page-item"><a class="page-link" href="{NextPage}">Older &rarr;</a></li>
+          {/block:NextPage}
+        </ul>
+      </nav>
+      {/block:Pagination}
+
+    </div>
+  </div>
+</div>
+
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+
+<script>
+
+// move unified controls to navbar
+// it's this complicated because we need to wait for controls to load
+(() => {
+  let inserted = false;
+  let element;
+  (new MutationObserver((mutations, observer) => {
+    mutations.forEach(mutation => {
+      if(!inserted && mutation.type == 'childList')
+        for(let newNode of mutation.addedNodes) {
+          if(newNode.nodeType == 1 && newNode.classList.contains('tmblr-iframe--unified-controls')) {
+            inserted = true;
+            element = newNode;
+          }
+        }
+      else if(mutation.type == 'attributes' && mutation.target == element && element.classList.contains('tmblr-iframe--loaded')) {
+        $('.navbar-brand').after(element);
+        observer.disconnect();
+      }
+    });
+  })).observe(document.body, {childList: true, subtree: true, attributes: true});
+})();
+
+</script>
+
+  </body>
+</html>
