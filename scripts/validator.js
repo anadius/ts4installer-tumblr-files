@@ -220,6 +220,16 @@ $('#user-input').append(`  <div class="form-group">
     <label for="directory-picker">Select your The Sims 4 directory</label>
     <input type="file" class="form-control-file" id="directory-picker" webkitdirectory directory>
   </div>`);
+$('#report').after(`<div class="template" style="display: none">
+  <div class="card">
+    <div class="card-header">
+      <button class="btn btn-link" type="button" data-toggle="collapse"></button>
+    </div>
+    <div class="collapse" data-parent="#report">
+      <textarea class="form-control" rows="10"></textarea>
+    </div>
+  </div>
+</div>`)
 
 // prepare and process info
 $('#directory-picker').on('change', async e => {
