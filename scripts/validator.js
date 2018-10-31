@@ -1,4 +1,4 @@
-(async () = {
+(async () => {
 
 let q = window.location.search;
 const ACTION = (q == '?new=' ? 'create' : 'validate');
