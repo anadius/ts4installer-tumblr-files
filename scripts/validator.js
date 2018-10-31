@@ -212,7 +212,7 @@ await Promise.all([
 if(ACTION == 'create')
   await addJS('https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js', 'sha384-VgWGwiEJnh9P379lbU8DxPcfRuFkfLl0uPuL9tolOHtm2tx8Qy8d/KtvovfM0Udh')
 
-$('#user-input').add(`  <div class="form-group">
+$('#user-input').append(`  <div class="form-group">
     <label for="md5-picker">Select .md5 file (optional)</label>
     <input type="file" class="form-control-file" id="md5-picker" accept=".md5">
   </div>
