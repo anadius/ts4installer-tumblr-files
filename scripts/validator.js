@@ -1,7 +1,7 @@
 (async () = {
 
 let q = window.location.search;
-const ACTION = q == '?new=' ? 'create' : 'validate';
+const ACTION = (q == '?new=' ? 'create' : 'validate');
 const SKIP_LANG_FILES = q.indexOf('skip_lang_files') > -1;
 const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : 'Forum'))
 q = undefined;
