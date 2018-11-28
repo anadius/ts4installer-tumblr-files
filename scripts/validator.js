@@ -2,8 +2,8 @@
 
 let q = window.location.search;
 const ACTION = (q == '?new=' ? 'create' : 'validate');
-const SKIP_LANG_FILES = q.indexOf('skip_lang_files') > -1;
-const QUICK_SCAN = q.indexOf('quick_scan') > -1;
+let SKIP_LANG_FILES = q.indexOf('skip_lang_files') > -1;
+let QUICK_SCAN = q.indexOf('quick_scan') > -1;
 const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : 'Forum'))
 q = undefined;
 
@@ -212,7 +212,11 @@ await Promise.all([
 if(ACTION == 'create')
   await addJS('https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js', 'sha384-VgWGwiEJnh9P379lbU8DxPcfRuFkfLl0uPuL9tolOHtm2tx8Qy8d/KtvovfM0Udh')
 
-$('#user-input').append(`  <div class="form-group">
+$('#user-input').append(`  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="quick-scan">
+    <label class="form-check-label" for="quick-scan">Quick scan (shows only missing and unknown files)</label>
+  </div>
+  <div class="form-group">
     <label for="md5-picker">Select .md5 file (optional)</label>
     <input type="file" class="form-control-file" id="md5-picker" accept=".md5">
   </div>
@@ -229,7 +233,16 @@ $('#report').after(`<div class="template" style="display: none">
       <textarea class="form-control" rows="10"></textarea>
     </div>
   </div>
-</div>`)
+</div>`);
+
+$('#quick-scan').on('change', e => {
+  $('#md5-picker').prop('disabled', (
+    $('#quick-scan').prop('checked') ? 'disabled' : ''
+  ));
+});
+
+if(QUICK_SCAN)
+  $('#quick-scan').click();
 
 // prepare and process info
 $('#directory-picker').on('change', async e => {
