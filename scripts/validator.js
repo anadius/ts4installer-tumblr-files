@@ -78,7 +78,7 @@ const calculateHashes = async filesInfo => {
   for(let path of Object.keys(filesInfo)) {
     let fileInfo = filesInfo[path];
     if(typeof fileInfo.hash == 'undefined') {
-      hashes[path] = await calculateMD5(fileInfo.file);
+      hashes[path] = (QUICK_SCAN ? '' : await calculateMD5(fileInfo.file));
     }
     else
       hashes[path] = fileInfo.hash;
@@ -113,7 +113,7 @@ const validate = async (version, filesInfo, folderName) => {
     }
   }
 
-  let userHashes = (QUICK_SCAN ? {} : await calculateHashes(filesInfo));
+  let userHashes = await calculateHashes(filesInfo);
 
   for(let path of Object.keys(userHashes)) {
     let hash = serverHashes[path];
