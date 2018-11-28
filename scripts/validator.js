@@ -250,6 +250,8 @@ $('#directory-picker').on('change', async e => {
       md5File = $('#md5-picker')[0].files[0],
       version = '', filesInfo = {}, folderName;
 
+  QUICK_SCAN = $('#quick-scan').prop('checked');
+
   if(files.length > 0)
     folderName = files[0].webkitRelativePath.split(/\\|\//)[0];
 
