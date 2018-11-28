@@ -3,6 +3,7 @@
 let q = window.location.search;
 const ACTION = (q == '?new=' ? 'create' : 'validate');
 const SKIP_LANG_FILES = q.indexOf('skip_lang_files') > -1;
+const QUICK_SCAN = q.indexOf('quick_scan') > -1;
 const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : 'Forum'))
 q = undefined;
 
@@ -112,15 +113,11 @@ const validate = async (version, filesInfo, folderName) => {
     }
   }
 
-  let userHashes = await calculateHashes(filesInfo);
+  let userHashes = (QUICK_SCAN ? {} : await calculateHashes(filesInfo));
 
   for(let path of Object.keys(userHashes)) {
     let hash = serverHashes[path];
-    if(typeof hash === 'string') {
-      if(hash !== userHashes[path])
-        mismatch.push(path);
-    }
-    else if(hash.indexOf(userHashes[path]) == -1)
+    if(hash !== userHashes[path])
       mismatch.push(path);
     delete serverHashes[path];
   }
@@ -130,6 +127,9 @@ const validate = async (version, filesInfo, folderName) => {
       if(path.match(/\/strings_[a-df-z][a-z]{2}_[a-z]{2}\.package/i))
         delete serverHashes[path];
     }
+
+  if(QUICK_SCAN)
+    mismatch = ['--- quick scan ---'];
 
   missing = Object.keys(serverHashes);
 
