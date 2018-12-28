@@ -3,14 +3,14 @@
 // @author      anadius
 // @match       *://www.ea.com/*/games/the-sims/the-sims-4/pc/gallery*
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
-// @version     1.0
+// @version     1.0.1
 // @grant       unsafeWindow
 // @namespace   anadius.github.io
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/favicon.png
 // ==/UserScript==
 
 const realDownload = async (uuid, debug) => {
-  const result = await fetch('https://anadius.heliohost.org/ts4gallery/download.php?id=' + encodeURIComponent(uuid), {mode: "cors"});
+  const result = await fetch('https://ts4.000webhostapp.com/gallery/download.php?id=' + encodeURIComponent(uuid), {mode: "cors"});
   const data = await result.json();
   if(debug === true) {
     console.log(uuid, data);
@@ -31,7 +31,9 @@ const toggleDownload = (scope, downloading) => {
 const download = async element => {
   const scope = unsafeWindow.angular.element(element).scope();
   toggleDownload(scope, true);
-  await realDownload(scope.vm.uuid, unsafeWindow.debug);
+  await realDownload(scope.vm.uuid, unsafeWindow.debug).catch(e => {
+    alert('some error has occured, try again later');
+  });
   toggleDownload(scope, false);
 };
 

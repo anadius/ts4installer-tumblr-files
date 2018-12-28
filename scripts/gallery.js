@@ -1,5 +1,5 @@
 const realDownload = async (uuid, debug) => {
-  const result = await fetch('https://anadius.heliohost.org/ts4gallery/download.php?id=' + encodeURIComponent(uuid), {mode: "cors"});
+  const result = await fetch('https://ts4.000webhostapp.com/gallery/download.php?id=' + encodeURIComponent(uuid), {mode: "cors"});
   const data = await result.json();
   if(debug === true) {
     console.log(uuid, data);
@@ -46,6 +46,8 @@ document.querySelector('#download-form > form').addEventListener('submit', async
   }
   const fieldset = document.querySelector('#download-form > form > fieldset');
   toggleDownload(fieldset, true);
-  await realDownload(hexToBase64(hex_id), window.debug);
+  await realDownload(hexToBase64(hex_id), window.debug).catch(e => {
+    alert('some error has occured, try again later');
+  });
   toggleDownload(fieldset, false);
 });
