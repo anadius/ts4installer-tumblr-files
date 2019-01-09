@@ -13,8 +13,8 @@ const FORMAT_DICT = {
     end: '[/spoiler]',
     bold_s: '[b]',
     bold_e: '[/b]',
-    head_s: '[h3]',
-    head_e: '[/h3]'
+    head_s: '[color=#026526][b][u]',
+    head_e: '[/u][/b][/color]'
   },
   'Disqus': {
     start: '<blockquote><code>',
