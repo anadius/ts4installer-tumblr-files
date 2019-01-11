@@ -248,7 +248,8 @@ if(QUICK_SCAN)
 $('#directory-picker').on('change', async e => {
   let files = e.target.files,
       md5File = $('#md5-picker')[0].files[0],
-      version = '', filesInfo = {}, folderName;
+      version = '', filesInfo = {}, folderName,
+      wrongFolder = true;
 
   QUICK_SCAN = $('#quick-scan').prop('checked');
 
@@ -265,20 +266,32 @@ $('#directory-picker').on('change', async e => {
 
     // detect game version
     if(path == 'game/bin/default.ini') {
+      wrongFolder = false;
       let ini = await readAs(file, 'text'),
           matches = ini.match(/^\s*gameversion\s*=\s*([\d\.]+)\s*$/m);
       if(matches && matches.length > 1)
         version = matches[1];
-      else {
-        console.log(ini);
-        version = prompt('Could not detect game version. Enter manually (eg. 1.46.18.1020)');
-      }
     }
+    else if(path == 'game/bin/codex.cfg' && version == '') {
+      wrongFolder = false;
+      let cfg = await readAs(file, 'text'),
+          matches = ini.match(/^\s*"Version"\s+"([\d\.]+)"\s*$/m);
+      if(matches && matches.length > 1)
+        version = matches[1];
+    }
+    else if(
+        path == 'data/simulation/simulationfullbuild0.package'
+        || path == 'data/simulation/simulationdeltabuild0.package')
+      wrongFolder = false;
   }
 
   if(version == '') {
-    alert('could not detect game version, wrong directory selected');
-    return;
+    if(wrongFolder) {
+      alert('could not detect game version, wrong directory selected');
+      return;
+    }
+    else
+      version = prompt('Could not detect game version. Enter manually (eg. 1.46.18.1020)');
   }
 
   if(typeof md5File !== 'undefined')
