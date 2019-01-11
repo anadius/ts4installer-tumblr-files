@@ -275,7 +275,7 @@ $('#directory-picker').on('change', async e => {
     else if(path == 'game/bin/codex.cfg' && version == '') {
       wrongFolder = false;
       let cfg = await readAs(file, 'text'),
-          matches = ini.match(/^\s*"Version"\s+"([\d\.]+)"\s*$/m);
+          matches = cfg.match(/^\s*"Version"\s+"([\d\.]+)"\s*$/m);
       if(matches && matches.length > 1)
         version = matches[1];
     }
