@@ -3,7 +3,7 @@
 // @author      anadius
 // @match       *://www.ea.com/*/games/the-sims/the-sims-4/pc/gallery*
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
-// @version     1.0.1
+// @version     1.0.2
 // @grant       unsafeWindow
 // @namespace   anadius.github.io
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/favicon.png
@@ -17,7 +17,7 @@ const realDownload = async (uuid, debug) => {
   }
   else {
     if(data.success)
-      window.open('https://simfileshare.net' + data.url, '_blank');
+      window.open('https://ts4installer.tumblr.com/d?link=' + encodeURIComponent(data.url), '_blank');
     else
       alert(data.message);
   }

@@ -6,7 +6,7 @@ const realDownload = async (uuid, debug) => {
   }
   else {
     if(data.success)
-      window.open('https://simfileshare.net' + data.url, '_blank');
+      window.open('https://ts4installer.tumblr.com/d?link=' + encodeURIComponent(data.url), '_blank');
     else
       alert(data.message);
   }
