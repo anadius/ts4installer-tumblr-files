@@ -3,39 +3,11 @@
 // @author      anadius
 // @match       *://www.ea.com/*/games/the-sims/the-sims-4/pc/gallery*
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
-// @version     1.0.2
-// @grant       unsafeWindow
+// @version     1.0.3
+// @grant       none
 // @namespace   anadius.github.io
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/favicon.png
 // ==/UserScript==
-
-const realDownload = async (uuid, debug) => {
-  const result = await fetch('https://ts4.000webhostapp.com/gallery/download.php?id=' + encodeURIComponent(uuid), {mode: "cors"});
-  const data = await result.json();
-  if(debug === true) {
-    console.log(uuid, data);
-  }
-  else {
-    if(data.success)
-      window.open('https://ts4installer.tumblr.com/d?link=' + encodeURIComponent(data.url), '_blank');
-    else
-      alert(data.message);
-  }
-};
-
-const toggleDownload = (scope, downloading) => {
-  scope.vm.toggleDownload.toggling = downloading;
-  scope.$apply();
-};
-
-const download = async element => {
-  const scope = unsafeWindow.angular.element(element).scope();
-  toggleDownload(scope, true);
-  await realDownload(scope.vm.uuid, unsafeWindow.debug).catch(e => {
-    alert('some error has occured, try again later');
-  });
-  toggleDownload(scope, false);
-};
 
 document.addEventListener('click', e => {
   let el = e.target;
@@ -46,6 +18,7 @@ document.addEventListener('click', e => {
   
   if(el.tagName === 'LI' && el.classList.contains('stream-tile__actions-download')) {
     e.stopPropagation();
-    download(el);
+    const uuid = el.parentNode.parentNode.parentNode.getAttribute('uuid');
+    window.open('https://ts4installer.tumblr.com/d?id=' + encodeURIComponent(uuid), '_blank');
   }
 }, true);

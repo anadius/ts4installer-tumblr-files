@@ -1,28 +1,7 @@
-const realDownload = async (uuid, debug) => {
-  const result = await fetch('https://ts4.000webhostapp.com/gallery/download.php?id=' + encodeURIComponent(uuid), {mode: "cors"});
-  const data = await result.json();
-  if(debug === true) {
-    console.log(uuid, data);
-  }
-  else {
-    if(data.success)
-      window.open('https://ts4installer.tumblr.com/d?link=' + encodeURIComponent(data.url), '_blank');
-    else
-      alert(data.message);
-  }
-};
-
 const hexToBase64 = str => {
   return btoa(String.fromCharCode.apply(null,
-    str.replace(/\r|\n/g, "").replace(/([\da-fA-F]{2}) ?/g, "0x$1 ").replace(/ +$/, "").split(" "))
+    str.replace(/\r|\n/g, '').replace(/([\da-fA-F]{2}) ?/g, '0x$1 ').replace(/ +$/, '').split(' '))
   );
-};
-
-const toggleDownload = (fieldset, downloading) => {
-  if(downloading)
-    fieldset.setAttribute('disabled', 'disabled');
-  else
-    fieldset.removeAttribute('disabled');
 };
 
 $('#download-form').append(`<form><fieldset class="row">
@@ -36,18 +15,14 @@ $('#download-form').append(`<form><fieldset class="row">
 
 document.querySelector('#download-form > form').addEventListener('submit', async e => {
   e.preventDefault();
-  let hex_id;
+  let hexid;
   try {
-    hex_id = document.querySelector('#download-url').value.match(/gallery\/([A-F0-9]{32})$/)[1];
+    hexid = document.querySelector('#download-url').value.match(/gallery\/([A-F0-9]{32})$/)[1];
   }
   catch (e) {
     alert('wrong URL');
     return;
   }
-  const fieldset = document.querySelector('#download-form > form > fieldset');
-  toggleDownload(fieldset, true);
-  await realDownload(hexToBase64(hex_id), window.debug).catch(e => {
-    alert('some error has occured, try again later');
-  });
-  toggleDownload(fieldset, false);
+  const uuid = hexToBase64(hexid);
+  window.open('https://ts4installer.tumblr.com/d?id=' + encodeURIComponent(uuid), '_blank');
 });
