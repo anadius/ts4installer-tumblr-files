@@ -17,7 +17,7 @@ document.querySelector('#download-form > form').addEventListener('submit', async
   e.preventDefault();
   let hexid;
   try {
-    hexid = document.querySelector('#download-url').value.match(/gallery\/([A-F0-9]{32})$/)[1];
+    hexid = document.querySelector('#download-url').value.match(/gallery\/([A-F0-9]{32})(?:$|\?.*)/)[1];
   }
   catch (e) {
     alert('wrong URL');
