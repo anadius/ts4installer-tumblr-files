@@ -4,14 +4,14 @@ const hexToBase64 = str => {
   );
 };
 
-$('#download-form').append(`<form><fieldset class="row">
+document.querySelector('#download-form').innerHTML = `<form><fieldset class="row">
   <div class="col">
     <input type="text" class="form-control mb-2" id="download-url">
   </div>
   <div class="col-auto">
     <button type="submit" class="btn btn-primary mb-2">Download</button>
   </div>
-</fieldset></form>`);
+</fieldset></form>`;
 
 document.querySelector('#download-form > form').addEventListener('submit', async e => {
   e.preventDefault();
