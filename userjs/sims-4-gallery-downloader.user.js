@@ -5,7 +5,7 @@
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
-// @version     2.0.0
+// @version     2.0.1
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -235,13 +235,18 @@ const getDataItem = async (guid, folder, type, id) => {
       });
     });
 
-    const editedMessage = new Uint8Array(messageClass.encode(message).finish());
-    const resultArray = new Uint8Array(8 + editedMessage.length + suffix.length);
-    resultArray.set(prefix);
-    (new DataView(resultArray.buffer)).setUint32(4, editedMessage.length, true);
-    resultArray.set(editedMessage, 8);
-    resultArray.set(suffix, 8 + editedMessage.length);
-    return resultArray.buffer;
+    try {
+      const editedMessage = new Uint8Array(messageClass.encode(message).finish());
+      const resultArray = new Uint8Array(8 + editedMessage.length + suffix.length);
+      resultArray.set(prefix);
+      (new DataView(resultArray.buffer)).setUint32(4, editedMessage.length, true);
+      resultArray.set(editedMessage, 8);
+      resultArray.set(suffix, 8 + editedMessage.length);
+      return resultArray.buffer;
+    }
+    catch(ignore) {
+    	return response;
+    }
   }
   else
     return response;
