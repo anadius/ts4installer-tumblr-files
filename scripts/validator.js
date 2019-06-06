@@ -308,6 +308,8 @@ $('#directory-picker').on('change', async e => {
        // my tools
        path.startsWith('language-changer.') ||
        path.startsWith('dlc-toggler.') ||
+       path.startsWith('dlc-uninstaller.') ||
+       path.startsWith('dlc.ini') ||
        // from MAC
        path.endsWith('/.ds_store') ||
        // safe to ignore, they should not be there but don't affect the game
