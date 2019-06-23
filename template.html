@@ -11,6 +11,9 @@
 
     <meta name="if:Enable Jump Pagination" content="1">
     <meta name="text:Comma separated keywords" content="">
+    <meta name="text:Pages with JS" content="">
+    <meta name="text:Github page link" content="">
+    <meta name="text:Disqus shortname" content="">
     {/block:Hidden}
 
     <!-- Required meta tags -->
@@ -32,7 +35,7 @@
     <style>
 
 body {
-  background-image: url({image:Background Image});
+  background: url({image:Background Image}) no-repeat center center fixed;
   background-size: cover;
 }
 
@@ -41,18 +44,18 @@ body {
   border-bottom-color: {color:Active Links Color} !important;
 }
 
-a, .page-link { color: {color:Links Color}; }
-a:hover, .page-link:hover { color: {color:Active Links Color}; }
+a, .page-link, .btn-link { color: {color:Links Color}; }
+a:hover, .page-link:hover, .btn-link:hover { color: {color:Active Links Color}; }
 .page-item.active .page-link {
   background-color: {color:Links Color};
   border-color: {color:Links Color};
 }
 .dropdown-item.active, .dropdown-item:active { background-color: {color:Links Color}; }
 .page-link { border-color: {color:Active Links Color} !important; }
-.card { border-color: {color:Active Links Color}; }
+.col > .card { border-color: {color:Active Links Color}; }
 
 /* remove padding from last element of the post */
-.card-body > :last-child { margin-bottom: 0; }
+.card-body :last-child { margin-bottom: 0; }
 
 .card-body img { max-width: 100%; }
 
@@ -115,13 +118,13 @@ nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
 </nav>
 
 <script>
+const setAttributes = (el, attrs) => {
+  Object.keys(attrs).forEach(key => el.setAttribute(key, attrs[key]));
+};
 // create dropdowns for links in format "Dropdown Name/Link Name"
 (() => {
-  function setAttributes(el, attrs) {
-    Object.keys(attrs).forEach(key => el.setAttribute(key, attrs[key]));
-  }
 
-  function createDropdown(parent, title) {
+  const createDropdown = (parent, title) => {
     let id = 'navbarDropdownMenu' + title;
 
     let button = document.createElement('a');
@@ -136,7 +139,7 @@ nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
     parent.appendChild(menu);
 
     return menu;
-  }
+  };
 
   const dropdowns = {};
   for(let link of document.querySelectorAll('.nav-link')) {
@@ -168,6 +171,12 @@ nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
   <div class="row">
     <div class="col">
 
+      {block:HomePage}{block:Description}
+      <div class="card my-4">
+        <div class="card-body">{Description}</div>
+      </div>
+      {/block:Description}{/block:HomePage}
+
       {block:Posts}
       <div class="card my-4">
         {block:Date}
@@ -184,8 +193,48 @@ nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
           {Body}
         </div>
         {/block:Text}
+
+        <div class="card-footer">
+        {block:HasTags}
+          {block:Tags}
+            <code><a href="{TagURL}">#{Tag}</a></code> 
+          {/block:Tags}
+        {/block:HasTags}
+        </div>
+
       </div>
       {/block:Posts}
+
+      {block:PermalinkPage}
+        {block:IfDisqusShortname}
+        <div class="card my-4">
+            <div id="disqus_thread" class="card-body"></div>
+            <script type="text/javascript">
+              (function(w, d) {
+                const title = d.querySelector('h3');
+                const post = title.nextElementSibling;
+                if(w.location.pathname.startsWith('/private/') || (title.innerHTML == 'Not Found' && post.innerHTML == 'The URL you requested could not be found.' && post.nextElementSibling == null)) return;
+
+                const link = w.location.href;
+                const t = d.querySelector('#disqus_thread');
+                if(w.parent != w || !link.startsWith('{BlogURL}')) {
+                  t.innerHTML = 'Comment on original page.';
+                  return;
+                }
+
+                const baseLink = link.replace(/[\?&#].*$/, '');
+                w.disqus_config = function () {
+                  this.page.url = baseLink.toLowerCase();
+                };
+                var dsq = d.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                dsq.src = 'https://{text:Disqus Shortname}.disqus.com/embed.js';
+                (d.head || d.body).appendChild(dsq);
+              })(window, document);
+            </script>
+            <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript={text:Disqus Shortname}">comments powered by Disqus.</a></noscript>
+        </div>
+        {/block:IfDisqusShortname}
+      {/block:PermalinkPage}
 
       {block:Pagination}
       <nav class="my-4" aria-label="posts pagination">
@@ -224,9 +273,22 @@ nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
 
 <script>
 
-// move unified controls to navbar
-// it's this complicated because we need to wait for controls to load
+const GITHUB_URL = '{text:Github page link}';
+
+const addJS = (url, integrity) => new Promise((resolve, reject) => {
+  const js = document.createElement('script');
+  js.onload = resolve;
+  js.onerror = reject;
+  let attributes = {src: url};
+  if(typeof integrity != 'undefined')
+    Object.assign(attributes, {integrity: integrity, crossorigin: 'anonymous'});
+  setAttributes(js, attributes);
+  document.body.appendChild(js);
+});
+
 (() => {
+  // move unified controls to navbar
+  // it's this complicated because we need to wait for controls to load
   let inserted = false;
   let element;
   (new MutationObserver((mutations, observer) => {
@@ -244,6 +306,11 @@ nav .tmblr-iframe--unified-controls.tmblr-iframe--loaded { position: relative; }
       }
     });
   })).observe(document.body, {childList: true, subtree: true, attributes: true});
+
+  // add JS on some custom pages
+  let page = window.location.pathname;
+  if('{text:Pages with JS}'.split(',').indexOf(page) > -1)
+    addJS(GITHUB_URL + 'scripts' + page + '.js');
 })();
 
 </script>
