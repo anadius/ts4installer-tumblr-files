@@ -14,7 +14,7 @@ document.head.appendChild(style);
 
 document.querySelector('#interactive').innerHTML = `
   <div id="step1">
-    <span>Do you have original game installed?</span><br>
+    <span>Do you have original (bought from Origin) game installed?</span><br>
     <label><input type="radio" name="game" value="original"> Yes</label><br>
     <label><input type="radio" name="game" value="cracked" checked> No</label><br>
     <button id="next" class="btn btn-primary">Next</button>
