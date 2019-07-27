@@ -1,9 +1,6 @@
 (async () => {
 
 let q = window.location.search;
-const ACTION = (q == '?new=' ? 'create' : 'validate');
-let SKIP_LANG_FILES = q.indexOf('skip_lang_files') > -1;
-let QUICK_SCAN = q.indexOf('full_scan') == -1;
 const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : 'Forum'))
 q = undefined;
 
@@ -21,8 +18,8 @@ const FORMAT_DICT = {
     end: '</code></blockquote>',
     bold_s: '<b>',
     bold_e: '</b>',
-    head_s: '</code><a><b>',
-    head_e: '</b></a><code>'
+    head_s: '</code><u><b>',
+    head_e: '</b></u><code>'
   },
   'Discord': {
     start: '```yaml\n',
@@ -34,23 +31,57 @@ const FORMAT_DICT = {
   }
 };
 
+const LANGUAGE_DICT = {
+  'cs_cz': 'cze_cz',
+  'da_dk': 'dan_dk',
+  'de_de': 'ger_de',
+  'en_us': 'eng_us',
+  'es_es': 'spa_es',
+  'fi_fi': 'fin_fi',
+  'fr_fr': 'fre_fr',
+  'it_it': 'ita_it',
+  'ja_jp': 'jpn_jp',
+  'ko_kr': 'kor_kr',
+  'nl_nl': 'dut_nl',
+  'no_no': 'nor_no',
+  'pl_pl': 'pol_pl',
+  'pt_br': 'por_br',
+  'ru_ru': 'rus_ru',
+  'sv_se': 'swe_se',
+  'zh_tw': 'cht_cn'
+};
+
+const addInfo = (info, name, value, list) => {
+  if(typeof list == 'undefined')
+    list = false;
+
+  if(Array.isArray(value)) {
+    value = value.join(list ? '\n' : ', ');
+  }
+  
+  if(typeof value == 'string') {
+    if(value != null)
+      info.push([name, value, list]);
+  }
+}
+
+const rawReport = (info, f) => {
+  let report = f.start;
+
+  for(let [name, value, list] of info) {
+    if(list)
+      report += f.head_s + name + ':' + f.head_e + '\n' + value + '\n';
+    else
+      report += name + ': ' + f.bold_s + value + f.bold_e + '\n';
+  }
+
+  return report + f.end;
+};
+
 // generate reports for all formats
-const generateReports = (version, folder, mismatch, missing, unknown) => {
+const generateReports = (info) => {
   for(let formatName of Object.keys(FORMAT_DICT)) {
-    let f = FORMAT_DICT[formatName],
-        report = (f.start + 'Version: ' + f.bold_s + version + f.bold_e
-          + '\nFolder: ' + f.bold_s + folder + f.bold_e + '\n'
-
-          + f.head_s + 'Hash mismatch:' + f.head_e
-          + '\n' + mismatch + '\n'
-
-          + f.head_s + 'Missing files:' + f.head_e
-          + '\n' + missing + '\n'
-
-          + f.head_s + 'Unknown files:' + f.head_e
-          + '\n' + unknown + '\n'
-          
-          + f.end),
+    let f = FORMAT_DICT[formatName], report = rawReport(info, f),
         $card = $('.template > .card').clone();
 
     $card.find('textarea').val(report)
@@ -66,23 +97,36 @@ const generateReports = (version, folder, mismatch, missing, unknown) => {
   $('#report').show();
 };
 
+const alwaysHash = path => (
+  path.endsWith('.exe') && path.indexOf('/bin/ts4') > -1
+);
+
 // calculate missing hashes and return simplified object
-const calculateHashes = async filesInfo => {
-  let hashes = {}, processedSize = 0, totalSize = 0;
+const calculateHashes = async (filesInfo, quickScan) => {
+  let hashes = {}, processedSize = 0, totalSize = 0, toCalculate = [];
 
   $('#hashing').show();
 
   for(let path of Object.keys(filesInfo)) {
-    totalSize += filesInfo[path].file.size;
-  }
-  for(let path of Object.keys(filesInfo)) {
     let fileInfo = filesInfo[path];
+
     if(typeof fileInfo.hash == 'undefined') {
-      hashes[path] = (QUICK_SCAN ? '' : await calculateMD5(fileInfo.file));
+      if(quickScan && !alwaysHash(path))
+        hashes[path] = null;
+      else {
+        toCalculate.push(path);
+        totalSize += fileInfo.file.size;
+      }
     }
     else
       hashes[path] = fileInfo.hash;
-    processedSize += fileInfo.file.size
+  }
+  for(let path of toCalculate) {
+    let fileInfo = filesInfo[path];
+
+    hashes[path] = await calculateMD5(fileInfo.file);
+    processedSize += fileInfo.file.size;
+
     let progress = prog2percent(processedSize / totalSize);
     $('#total-progress')
       .css('width', progress)
@@ -94,17 +138,83 @@ const calculateHashes = async filesInfo => {
   return hashes;
 };
 
-// validate game files
-const validate = async (version, filesInfo, folderName) => {
-  let response = await fetch(`${GITHUB_URL}hashes/${version}.json`),
-      missing = [], unknown = [], mismatch = [];
+const addGameCrackedHashes = (source, destination) => {
+  for(let key of Object.keys(source)) {
+    if(key.startsWith('game/'))
+      destination[key.replace('game/', 'game-cracked/')] = source[key];
+  }
+};
+
+const updateDict = (source, destination) => {
+  for(let key of Object.keys(source)) {
+    destination[key] = source[key];
+  }
+};
+
+const getHashes = async (version, legit) => {
+  let response = await fetch(`${GITHUB_URL}hashes/${version}.json`);
 
   if(!response.ok) {
     alert(`hashes for version ${version} not found on server`);
-    return;
+    throw 'hashes not found';
   }
 
-  let serverHashes = await response.json();
+  let hashes = await response.json(), crack, newFormat = false;
+
+  // new format: {"crack": {...}, "hashes": {...}}
+  if(typeof hashes.hashes == 'object') {
+    ({hashes, crack} = hashes);
+    newFormat = true;
+  }
+  // if legit, set hashes of Game-cracked to the same as for Game
+  if(legit)
+    addGameCrackedHashes(hashes, hashes);
+  // if it's new format, add crack hashes to Game or Game-cracked (when legit)
+  if(newFormat)
+    (legit ? addGameCrackedHashes : updateDict)(crack, hashes);
+
+  return hashes;
+};
+
+// if there are only language files or none at all, mark as not installed
+// instead of listing all files under unknown files
+const detectMissingDLCs = (missing, paths, info) => {
+  let folders = new Set();
+  for(let path of missing) {
+    folders.add(path.split('/', 1)[0]);
+  }
+  
+  for(let folder of folders) {
+    if(folder.match(/^[segf]p\d{2}$/) === null)
+      folders.delete(folder);
+  }
+  if(folders.size == 0)
+    return missing;
+
+  for(let path of paths) {
+    let pathParts = path.split('/'), folder = pathParts[0],
+        file = pathParts[pathParts.length - 1];
+    if(!folders.has(folder) || file.startsWith('strings_'))
+      continue;
+
+    folders.delete(folder);
+  }
+  if(folders.size == 0)
+    return missing;
+
+  let notInstalled = Array.from(folders),
+      pattern = new RegExp('^(' + notInstalled.join('|') + ')/');
+  addInfo(
+    info, 'DLCs not installed',
+    notInstalled.map(x => x.toUpperCase()).sort()
+  );
+  return missing.filter(x => x.match(pattern) === null);
+};
+
+// validate game files
+const validate = async (version, filesInfo, info, quickScan, legit, ignoredLanguages) => {
+  let missing = [], unknown = [], mismatch = [], dlcFiles = {},
+      serverHashes = await getHashes(version, legit);
 
   for(let path of Object.keys(filesInfo)) {
     if(typeof serverHashes[path] == 'undefined') {
@@ -113,39 +223,29 @@ const validate = async (version, filesInfo, folderName) => {
     }
   }
 
-  let userHashes = await calculateHashes(filesInfo);
+  if(quickScan)
+    mismatch.push('--- quick scan ---');
+
+  let userHashes = await calculateHashes(filesInfo, quickScan);
 
   for(let path of Object.keys(userHashes)) {
-    let hash = serverHashes[path];
-    if(hash !== userHashes[path])
+    let hash = userHashes[path];
+    if(hash !== null && hash !== serverHashes[path])
       mismatch.push(path);
     delete serverHashes[path];
   }
 
-  if(SKIP_LANG_FILES)
-    for(let path of Object.keys(serverHashes)) {
-      if(path.match(/\/strings_[a-df-z][a-z]{2}_[a-z]{2}\.package/i))
-        delete serverHashes[path];
-    }
-
-  if(QUICK_SCAN)
-    mismatch = ['--- quick scan ---'];
-
   missing = Object.keys(serverHashes);
+  if(ignoredLanguages.length > 0) {
+    let pattern = new RegExp('strings_(' + ignoredLanguages.join('|') + ').package$');
+    missing = missing.filter(x => x.match(pattern) === null);
+  }
+  missing = detectMissingDLCs(missing, Object.keys(userHashes), info);
 
-  generateReports(
-    version, folderName,
-    mismatch.sort().join('\n'),
-    missing.sort().join('\n'),
-    unknown.sort().join('\n')
-  );
-};
-
-// create .json file for new version
-const create = async (version, filesInfo) => {
-  let userHashes = await calculateHashes(filesInfo),
-      blob = new Blob([JSON.stringify(userHashes)], {type: 'application/json;charset=utf-8'});
-  saveAs(blob, `${version}.json`);
+  addInfo(info, 'Hash mismatch', mismatch.sort(), true);
+  addInfo(info, 'Missing files', missing.sort(), true);
+  addInfo(info, 'Unknown files', unknown.sort(), true);
+  generateReports(info);
 };
 
 // read file (blob) as text or array buffer asynchronously
@@ -203,14 +303,158 @@ const processMD5 = async (file, info) => {
   }
 };
 
+const getVersionFromFile = async (file, regexp) => {
+  let contents = await readAs(file, 'text'),
+    matches = contents.match(regexp);
+  if(matches)
+    return matches[1];
+  else
+    return null;
+};
+
+// get version from default.ini
+const getGameVersion = async file => {
+  return await getVersionFromFile(file, /^\s*gameversion\s*=\s*([\d\.]+)\s*$/m)
+};
+
+// get version from codex.cfg
+const getCODEXCrackVersion = async file => {
+  return await getVersionFromFile(file, /^\s*"Version"\s+"([\d\.]+)"\s*$/m)
+};
+
+const getVersion = async (filesInfo, info) => {
+  let tmp, legit = false, wrongDir = true,
+      gameVersion = gameCrackedVersion = crackVersion = null;
+
+  tmp = filesInfo['game/bin/default.ini'];
+  if(typeof tmp !== 'undefined') {
+    gameVersion = await getGameVersion(tmp.file);
+    wrongDir = false;
+  }
+  tmp = filesInfo['game-cracked/bin/default.ini'];
+  if(typeof tmp !== 'undefined') {
+    gameCrackedVersion = await getGameVersion(tmp.file);
+    wrongDir = false;
+    legit = true;
+  }
+  else if(typeof filesInfo['game-cracked/bin/ts4_x64.exe'] !== 'undefined') {
+    wrongDir = false;
+    legit = true;
+  }
+  tmp = filesInfo['game' + (legit ? '-cracked' : '') + '/bin/codex.cfg'];
+  if(typeof tmp !== 'undefined') {
+    crackVersion = await getCODEXCrackVersion(tmp.file);
+    wrongDir = false;
+  }
+
+  addInfo(info, 'Game version', gameVersion);
+  if(legit)
+    addInfo(info, 'Game-cracked version', gameCrackedVersion || 'not detected');
+  addInfo(info, 'Crack version', crackVersion);
+
+  return [gameVersion || gameCrackedVersion || crackVersion, legit, wrongDir];
+};
+
+// check if file can be ignored - additional files added by repackers, etc.
+const canBeIgnored = path => (
+  // G4TW's files
+  path.startsWith('#') ||
+  // can play without it
+  path.startsWith('soundtrack/') ||
+  path.startsWith('support/') ||
+  // my tools
+  path == 'language-changer.exe' ||
+  path == 'dlc-toggler.exe' ||
+  path == 'dlc-uninstaller.exe' ||
+  path == 'dlc.ini' ||
+  // from MAC
+  path.endsWith('/.ds_store') //||
+  // safe to ignore, they should not be there but don't affect the game
+  // path.endsWith('.rar') ||
+  // path.endsWith('.bak') ||
+  // path.endsWith('.lnk') ||
+  // path.endsWith('.tmp')
+);
+
+// filter files from selected folder and detect game languages
+const filterAndDetectLang = files => {
+  let info = {}, langs = [], ignoredLangs = [];
+
+  for(let file of files) {
+    let pathElems = file.webkitRelativePath.split(/\\|\//);
+    pathElems.shift();
+    let path = pathElems.join('/').toLowerCase();
+
+    if(path.startsWith('__installer/')) {
+      let matches = path.match('__installer/gdfbinary_([a-z]{2}_[a-z]{2}).dll');
+      if(matches) {
+        let lang = matches[1];
+        if(typeof LANGUAGE_DICT[lang] != 'undefined')
+          langs.push(lang);
+      }
+      continue;
+    }
+    else if(canBeIgnored(path))
+      continue;
+
+    info[path] = {file: file};
+  }
+
+  if(langs.length == 0 || langs.length == Object.keys(LANGUAGE_DICT).length)
+    langs = null;
+  else
+    for(let lang of Object.keys(LANGUAGE_DICT)) {
+      if(langs.indexOf(lang) == -1)
+        ignoredLangs.push(LANGUAGE_DICT[lang]);
+    }
+
+  return [info, langs, ignoredLangs];
+};
+
+// prepare and process info
+const initialProcessing = async e => {
+  let info = [], folderName, files = e.target.files,
+      md5File = $('#md5-picker')[0].files[0],
+      quickScan = $('#quick-scan').prop('checked');
+
+  if(files.length > 0)
+    folderName = files[0].webkitRelativePath.split(/\\|\//, 1)[0];
+  else {
+    alert('No files found in selected directory.');
+    return;
+  }
+
+  let [filesInfo, languages, ignoredLanguages] = filterAndDetectLang(files),
+      [version, legit, wrongDir] = await getVersion(filesInfo, info);
+
+  if(version === null) {
+    if(
+        wrongDir &&
+        typeof filesInfo['data/simulation/simulationfullbuild0.package'] == 'undefined' &&
+        typeof filesInfo['data/simulation/simulationdeltabuild0.package'] == 'undefined') {
+      alert('Could not detect game version. Wrong directory selected.');
+      return;
+    }
+    else
+      version = prompt('Could not detect game version. Enter manually (eg. 1.46.18.1020)');
+  }
+
+  $('#user-input').hide();
+
+  if(typeof md5File !== 'undefined')
+    await processMD5(md5File, filesInfo);
+
+  addInfo(info, 'Folder', folderName);
+  addInfo(info, 'Languages', languages);
+
+  validate(version, filesInfo, info, quickScan, legit, ignoredLanguages);
+};
+
 await addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/core.min.js', 'sha384-j/yjQ26lM3oABUyp5sUcxbbLK/ECT6M4bige54dRtJcbhk+j6M8GAt+ZJYPK3q/l')
 await Promise.all([
   addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/md5.min.js', 'sha384-FvUg0oOjwQ1uec6J22LkHkEihYZfQYU5BaPKoUpt5OUVr7+CKyX2o5NC/fOqFGih'),
   addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/lib-typedarrays.min.js', 'sha384-ntzxweGwO+bdybZB6NfRCrCbK1X5djqon4rquDPIQFe1jBTZ5KZ1qnoTZCup5Nwh')
 ]);
-
-if(ACTION == 'create')
-  await addJS('https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js', 'sha384-VgWGwiEJnh9P379lbU8DxPcfRuFkfLl0uPuL9tolOHtm2tx8Qy8d/KtvovfM0Udh')
 
 $('#user-input').append(`  <div class="form-check">
     <input class="form-check-input" type="checkbox" id="quick-scan">
@@ -221,7 +465,7 @@ $('#user-input').append(`  <div class="form-check">
     <input type="file" class="form-control-file" id="md5-picker" accept=".md5">
   </div>
   <div class="form-group">
-    <label for="directory-picker">Select your The Sims 4 directory</label>
+    <label for="directory-picker">Select your The Sims 4 installation directory (the one with "Data", "Delta", "Game" and other folders inside)</label>
     <input type="file" class="form-control-file" id="directory-picker" webkitdirectory directory>
   </div>`);
 $('#report').after(`<div class="template" style="display: none">
@@ -230,103 +474,26 @@ $('#report').after(`<div class="template" style="display: none">
       <button class="btn btn-link" type="button" data-toggle="collapse"></button>
     </div>
     <div class="collapse" data-parent="#report">
-      <textarea class="form-control" rows="10"></textarea>
+      <textarea class="form-control" rows="15"></textarea>
     </div>
   </div>
 </div>`);
 
 $('#quick-scan').on('change', e => {
   $('#md5-picker').prop('disabled', (
-    $('#quick-scan').prop('checked') ? 'disabled' : ''
+    $(e.target).prop('checked') ? 'disabled' : ''
   ));
 });
 
-if(QUICK_SCAN)
-  $('#quick-scan').click();
+$('#quick-scan').click();
 
-// prepare and process info
 $('#directory-picker').on('change', async e => {
-  let files = e.target.files,
-      md5File = $('#md5-picker')[0].files[0],
-      version = '', filesInfo = {}, folderName,
-      wrongFolder = true;
-
-  QUICK_SCAN = $('#quick-scan').prop('checked');
-
-  if(files.length > 0)
-    folderName = files[0].webkitRelativePath.split(/\\|\//)[0];
-
-  for(let file of files) {
-    let pathElems = file.webkitRelativePath.toLowerCase().split(/\\|\//);
-    pathElems.shift();
-    let path = pathElems.join('/');
-    filesInfo[path] = {
-      file: file
-    }
-
-    // detect game version
-    if(path == 'game/bin/default.ini') {
-      wrongFolder = false;
-      let ini = await readAs(file, 'text'),
-          matches = ini.match(/^\s*gameversion\s*=\s*([\d\.]+)\s*$/m);
-      if(matches && matches.length > 1)
-        version = matches[1];
-    }
-    else if(path == 'game/bin/codex.cfg' && version == '') {
-      wrongFolder = false;
-      let cfg = await readAs(file, 'text'),
-          matches = cfg.match(/^\s*"Version"\s+"([\d\.]+)"\s*$/m);
-      if(matches && matches.length > 1)
-        version = matches[1];
-    }
-    else if(
-        path == 'data/simulation/simulationfullbuild0.package'
-        || path == 'data/simulation/simulationdeltabuild0.package')
-      wrongFolder = false;
+  try {
+    await initialProcessing(e);
   }
-
-  if(version == '') {
-    if(wrongFolder) {
-      alert('could not detect game version, wrong directory selected');
-      return;
-    }
-    else
-      version = prompt('Could not detect game version. Enter manually (eg. 1.46.18.1020)');
+  catch(err) {
+    alert('Some error occured, try using Firefox or Chrome.\n\n' + err);
   }
-
-  if(typeof md5File !== 'undefined')
-    await processMD5(md5File, filesInfo);
-
-  // ignore some files
-  for(let path of Object.keys(filesInfo)) {
-    if(// G4TW's files
-       path.startsWith('#') ||
-       // can play without it
-       path.startsWith('__installer/') ||
-       path.startsWith('soundtrack/') ||
-       path.startsWith('support/') ||
-       // my tools
-       path.startsWith('language-changer.') ||
-       path.startsWith('dlc-toggler.') ||
-       path.startsWith('dlc-uninstaller.') ||
-       path.startsWith('dlc.ini') ||
-       // from MAC
-       path.endsWith('/.ds_store') ||
-       // safe to ignore, they should not be there but don't affect the game
-       path.endsWith('.rar') ||
-       path.endsWith('.bak') ||
-       path.endsWith('.lnk') ||
-       path.endsWith('.tmp')) {
-      delete filesInfo[path];
-    }
-  }
-
-  $('#user-input').hide();
-
-  if(ACTION == 'create')
-    create(version, filesInfo);
-  else
-    validate(version, filesInfo, folderName);
 });
 
 })();
