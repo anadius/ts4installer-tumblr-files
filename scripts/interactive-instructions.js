@@ -75,11 +75,9 @@ document.querySelector('#next').addEventListener('click', () => {
   let base = document.querySelector('#want input[value="base"]');
   base.checked = true;
   base.disabled = true;
-  if(type_ == 'original') {
-    let patch = document.querySelector('#want input[value="patch"]');
-    patch.checked = true;
-    patch.disabled = true;
-  }
+  let patch = document.querySelector('#want input[value="patch"]');
+  patch.checked = true;
+  patch.disabled = true;
 
   document.querySelector('#step2').style.display = 'block';
 }, false);
@@ -88,12 +86,17 @@ document.querySelector('#step2').addEventListener('click', () => {
   if(type_ == 'original')
     return;
   let patch_needed = false;
-  for(let checkbox of document.querySelectorAll('#want input')) {
-    if(checkbox.value == 'base' || checkbox.value == 'patch')
-      continue;
-    if(checkbox.checked && !document.querySelector(`#have input[value="${checkbox.value}"]`).checked)
-      patch_needed = true;
+  if(document.querySelector(`#have input[value="base"]`).checked) {
+    for(let checkbox of document.querySelectorAll('#want input')) {
+      if(checkbox.value == 'base' || checkbox.value == 'patch')
+        continue;
+      if(checkbox.checked && !document.querySelector(`#have input[value="${checkbox.value}"]`).checked)
+        patch_needed = true;
+        break;
+    }
   }
+  else
+    patch_needed = true;
   let patch = document.querySelector('#want input[value="patch"]')
   if(patch_needed) {
     patch.checked = true;
