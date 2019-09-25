@@ -90,9 +90,10 @@ document.querySelector('#step2').addEventListener('click', () => {
     for(let checkbox of document.querySelectorAll('#want input')) {
       if(checkbox.value == 'base' || checkbox.value == 'patch')
         continue;
-      if(checkbox.checked && !document.querySelector(`#have input[value="${checkbox.value}"]`).checked)
+      if(checkbox.checked && !document.querySelector(`#have input[value="${checkbox.value}"]`).checked) {
         patch_needed = true;
         break;
+      }
     }
   }
   else
