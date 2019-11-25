@@ -98,7 +98,8 @@ const generateReports = (info) => {
 };
 
 const alwaysHash = path => (
-  path.endsWith('.exe') && path.indexOf('/bin/ts4') > -1
+  path.match(/\/bin(?:_le)?\/ts4(?:_x64)?\.exe?/) !== null
+  // path.endsWith('.exe') && path.indexOf('/bin/ts4') > -1
 );
 
 // calculate missing hashes and return simplified object
@@ -185,30 +186,36 @@ const detectMissingDLCs = (missing, paths, info) => {
   }
   
   for(let folder of folders) {
-    if(folder.match(/^[segf]p\d{2}$/) === null)
+    if(folder.match(/^(?:[segf]p\d{2}|delta_le)$/) === null)
       folders.delete(folder);
   }
-  if(folders.size == 0)
-    return missing;
 
-  for(let path of paths) {
-    let pathParts = path.split('/'), folder = pathParts[0],
-        file = pathParts[pathParts.length - 1];
-    if(!folders.has(folder) || file.startsWith('strings_'))
-      continue;
+  if(folders.size > 0) {
+    for(let path of paths) {
+      let pathParts = path.split('/'), folder = pathParts[0],
+          file = pathParts[pathParts.length - 1];
+      if(!folders.has(folder) || file.startsWith('strings_'))
+        continue;
 
-    folders.delete(folder);
+      folders.delete(folder);
+    }
   }
-  if(folders.size == 0)
-    return missing;
 
-  let notInstalled = Array.from(folders),
-      pattern = new RegExp('^(' + notInstalled.join('|') + ')/');
-  addInfo(
-    info, 'DLCs not installed',
-    notInstalled.map(x => x.toUpperCase()).sort()
-  );
-  return missing.filter(x => x.match(pattern) === null);
+  let pattern = new RegExp('^(' + Array.from(folders).join('|') + ')/'),
+      should_filter = folders.size > 0;
+  
+  addInfo(info, 'Legacy Edition', (folders.has('delta_le') ? 'not ' : '') + 'installed');
+  folders.delete('delta_le');
+  if(folders.size > 0)
+    addInfo(
+      info, 'DLCs not installed',
+      Array.from(folders).map(x => x.toUpperCase()).sort()
+    );
+
+  if(should_filter)
+    return missing.filter(x => x.match(pattern) === null);
+  else
+    return missing;
 };
 
 // validate game files
