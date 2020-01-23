@@ -48,6 +48,7 @@ const LANGUAGE_DICT = {
   'pt_br': 'por_br',
   'ru_ru': 'rus_ru',
   'sv_se': 'swe_se',
+  'zh_cn': 'chs_cn',
   'zh_tw': 'cht_cn'
 };
 
