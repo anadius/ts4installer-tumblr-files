@@ -5,7 +5,7 @@
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
-// @version     2.0.2
+// @version     2.0.3
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -22,6 +22,7 @@
 // ==/UserScript==
 
 const TRAY_ITEM_URL = 'https://www.thesims.com/api/gallery/v1/sims/{UUID}';
+const TRAY_ITEM_URL_2 = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.json';
 const DATA_ITEM_URL = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.dat';
 const IMAGE_URL = 'https://athena.thesims.com/v1/images/{TYPE}/{FOLDER}/{GUID}/{INDEX}.jpg';
 
@@ -173,9 +174,14 @@ const parseMessageObj = messageObj => {
   return [parsedMessage, messageClass];
 };
 
-const getTrayItem = async uuid => {
-  const result = await fetch(TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)));
-  const message = await result.json();
+const getTrayItem = async (uuid, guid, folder) => {
+  let result = await fetch(TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)));
+  let message = await result.json();
+
+  if(typeof message.error !== 'undefined') {
+    result = await fetch(TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid));
+    message = await result.json();
+  }
 
   const [parsedMessage, messageClass] = parseMessageObj(message);
   parsedMessage.id = getRandomId();
@@ -325,15 +331,16 @@ const toggleDownload = (scope, downloading) => {
 const downloadItem = async scope => {
   try {
     const uuid = scope.vm.uuid;
+    const guid = uuid2Guid(uuid);
+    const folder = getFilePath(guid);
+
     toggleDownload(scope, true);
     const zip = new JSZip();
 
-    const [trayItem, type, id, additional, author, title] = await getTrayItem(uuid);
+    const [trayItem, type, id, additional, author, title] = await getTrayItem(uuid, guid, folder);
     zip.file(generateName(type, id, 'trayitem'), trayItem);
 
     const [typeStr, dataExt, imageExt, additionalExt] = EXTENSIONS[type];
-    const guid = uuid2Guid(uuid);
-    const folder = getFilePath(guid);
 
     const dataItem = await getDataItem(guid, folder, type, id);
     zip.file(generateName(0, id, dataExt), dataItem);
