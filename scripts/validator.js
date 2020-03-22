@@ -488,9 +488,14 @@ $('#report').after(`<div class="template" style="display: none">
 </div>`);
 
 $('#quick-scan').on('change', e => {
-  $('#md5-picker').prop('disabled', (
-    $(e.target).prop('checked') ? 'disabled' : ''
-  ));
+  if($(e.target).prop('checked')) {
+    $('#md5-picker').prop('disabled', 'disabled');
+    $('#md5info').hide();
+  }
+  else {
+    $('#md5-picker').prop('disabled', '');
+    $('#md5info').show();
+  }
 });
 
 $('#quick-scan').click();
