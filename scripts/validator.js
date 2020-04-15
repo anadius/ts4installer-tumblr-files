@@ -178,9 +178,22 @@ const getHashes = async (version, legit) => {
   return hashes;
 };
 
+const olderThan = (ver1, ver2) => {
+  try {
+    const parts1 = ver1.split('.'), parts2 = ver2.split('.');
+    for(let i=0; i<3; ++i) {
+      if(Number(parts1[i]) < Number(parts2[i]))
+        return true;
+    }
+  }
+  catch (ignore) {}
+
+  return false;
+};
+
 // if there are only language files or none at all, mark as not installed
 // instead of listing all files under unknown files
-const detectMissingDLCs = (missing, paths, info) => {
+const detectMissingDLCs = (missing, paths, info, version) => {
   let folders = new Set();
   for(let path of missing) {
     folders.add(path.split('/', 1)[0]);
@@ -204,9 +217,12 @@ const detectMissingDLCs = (missing, paths, info) => {
 
   let pattern = new RegExp('^(' + Array.from(folders).join('|') + ')/'),
       should_filter = folders.size > 0;
-  
-  addInfo(info, 'Legacy Edition', (folders.has('delta_le') ? 'not ' : '') + 'installed');
-  folders.delete('delta_le');
+
+  if(!olderThan(version, '1.58.63')) {
+    addInfo(info, 'Legacy Edition', (folders.has('delta_le') ? 'not ' : '') + 'installed');
+    folders.delete('delta_le');
+  }
+
   if(folders.size > 0)
     addInfo(
       info, 'DLCs not installed',
@@ -248,7 +264,7 @@ const validate = async (version, filesInfo, info, quickScan, legit, ignoredLangu
     let pattern = new RegExp('strings_(' + ignoredLanguages.join('|') + ').package$');
     missing = missing.filter(x => x.match(pattern) === null);
   }
-  missing = detectMissingDLCs(missing, Object.keys(userHashes), info);
+  missing = detectMissingDLCs(missing, Object.keys(userHashes), info, version);
 
   addInfo(info, 'Hash mismatch', mismatch.sort(), true);
   addInfo(info, 'Missing files', missing.sort(), true);
@@ -366,7 +382,7 @@ const getVersion = async (filesInfo, info) => {
 // check if file can be ignored - additional files added by repackers, etc.
 const canBeIgnored = path => (
   // G4TW's files
-  path.startsWith('#') ||
+  // path.startsWith('#') ||
   // can play without it
   path.startsWith('soundtrack/') ||
   path.startsWith('support/') ||
@@ -386,7 +402,7 @@ const canBeIgnored = path => (
 
 // filter files from selected folder and detect game languages
 const filterAndDetectLang = files => {
-  let info = {}, langs = [], ignoredLangs = [];
+  let info = {}, langs = [];
 
   for(let file of files) {
     let pathElems = file.webkitRelativePath.split(/\\|\//);
@@ -408,15 +424,7 @@ const filterAndDetectLang = files => {
     info[path] = {file: file};
   }
 
-  if(langs.length == 0 || langs.length == Object.keys(LANGUAGE_DICT).length)
-    langs = null;
-  else
-    for(let lang of Object.keys(LANGUAGE_DICT)) {
-      if(langs.indexOf(lang) == -1)
-        ignoredLangs.push(LANGUAGE_DICT[lang]);
-    }
-
-  return [info, langs, ignoredLangs];
+  return [info, langs];
 };
 
 // prepare and process info
@@ -432,8 +440,9 @@ const initialProcessing = async e => {
     return;
   }
 
-  let [filesInfo, languages, ignoredLanguages] = filterAndDetectLang(files),
-      [version, legit, wrongDir] = await getVersion(filesInfo, info);
+  let [filesInfo, languages] = filterAndDetectLang(files),
+      [version, legit, wrongDir] = await getVersion(filesInfo, info),
+      ignoredLanguages = [];
 
   if(version === null) {
     if(
@@ -443,9 +452,26 @@ const initialProcessing = async e => {
       alert('Could not detect game version. Wrong directory selected.');
       return;
     }
-    else
+    else {
       version = prompt('Could not detect game version. Enter manually (eg. 1.46.18.1020)');
+      if(version === null || version.match(/^\d+\.\d+\.\d+\.\d+$/) === null) {
+        alert('Incorrect game version.');
+        return;
+      }
+    }
   }
+
+  if(olderThan(version, '1.60.54')) {
+    delete LANGUAGE_DICT['zh_cn'];
+  }
+
+  if(languages.length == 0 || languages.length == Object.keys(LANGUAGE_DICT).length)
+    languages = null;
+  else
+    for(let lang of Object.keys(LANGUAGE_DICT)) {
+      if(languages.indexOf(lang) == -1)
+        ignoredLanguages.push(LANGUAGE_DICT[lang]);
+    }
 
   $('#user-input').hide();
 
