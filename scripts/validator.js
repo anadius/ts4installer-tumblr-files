@@ -182,8 +182,11 @@ const olderThan = (ver1, ver2) => {
   try {
     const parts1 = ver1.split('.'), parts2 = ver2.split('.');
     for(let i=0; i<3; ++i) {
-      if(Number(parts1[i]) < Number(parts2[i]))
+      let part1 = Number(parts1[i]), part2 = Number(parts2[i]);
+      if(part1 < part2)
         return true;
+      if(part1 > part2)
+        return false;
     }
   }
   catch (ignore) {}
