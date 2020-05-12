@@ -5,7 +5,7 @@
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
-// @version     2.0.3
+// @version     2.1.0
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -393,3 +393,20 @@ document.addEventListener('click', e => {
 console.log('running');
 
 })();
+
+/* add "force login" link */
+
+const a = document.createElement('a');
+a.href = 'https://www.thesims.com/login?redirectUri=' + encodeURIComponent(document.location);
+a.innerHTML = '<b>force login</b>';
+a.style.background = 'grey';
+a.style.color = 'white';
+a.style.display = 'inline-block';
+a.style.position = 'absolute';
+a.style.top = 0;
+a.style.left = 0;
+a.style.height = '40px';
+a.style.lineHeight = '40px';
+a.style.padding = '0 15px';
+a.style.zIndex = 99999;
+document.body.appendChild(a);
