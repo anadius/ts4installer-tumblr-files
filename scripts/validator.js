@@ -1,7 +1,7 @@
 (async () => {
 
 let q = window.location.search;
-const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : 'Forum'))
+const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : (q.indexOf('forum') > -1 ? 'Forum' : 'NONE')))
 q = undefined;
 
 const FORMAT_DICT = {
@@ -536,6 +536,11 @@ $('#directory-picker').on('change', async e => {
   catch(err) {
     alert('Some error occured, try using Firefox or Chrome.\n\n' + err);
   }
+});
+
+$('#report').on('copy', e => {
+  e.originalEvent.clipboardData.setData('text/plain', e.target.value);
+  e.preventDefault();
 });
 
 })();
