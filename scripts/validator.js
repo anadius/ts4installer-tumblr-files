@@ -52,6 +52,8 @@ const LANGUAGE_DICT = {
   'zh_tw': 'cht_cn'
 };
 
+const randomLetters = () => Math.random().toString(36).replace(/[^a-z]+/g, '');
+
 const addInfo = (info, name, value, list) => {
   if(typeof list == 'undefined')
     list = false;
@@ -154,7 +156,7 @@ const updateDict = (source, destination) => {
 };
 
 const getHashes = async (version, legit) => {
-  let response = await fetch(`${GITHUB_URL}hashes/${version}.json`);
+  let response = await fetch(`${GITHUB_URL}hashes/${version}.json?${randomLetters()}=${randomLetters()}`);
 
   if(!response.ok) {
     alert(`hashes for version ${version} not found on server`);
