@@ -432,6 +432,48 @@ const filterAndDetectLang = files => {
   return [info, langs];
 };
 
+const detectLanguages = filesInfo => {
+  const langPerFolder = {};
+  const allLangCount = Object.values(LANGUAGE_DICT).length;
+  const re = new RegExp(
+    '^(data/client|delta/(?:[egs]p[0-9]{2}))/strings_('
+    + Object.values(LANGUAGE_DICT).join('|')
+    + ')\.package$');
+  for(let path of Object.keys(filesInfo)) {
+    let m = path.match(re);
+    if(m) {
+      try {
+        langPerFolder[m[1]].add(m[2]);
+      }
+      catch(e) {
+        if(e instanceof TypeError) {
+          langPerFolder[m[1]] = new Set([m[2]]);
+        }
+        else
+          throw e;
+      }
+    }
+  }
+
+  const languagesSet = new Set();
+  for(let langs of Object.values(langPerFolder)) {
+    if(langs.size === allLangCount)
+      continue;
+    langs.forEach(languagesSet.add, languagesSet);
+  }
+  const reversedLangDict = Object.entries(LANGUAGE_DICT).reduce((ret, entry) => {
+    const [key, value] = entry;
+    ret[value] = key;
+    return ret;
+  }, {});
+
+  const languages = [];
+  for(let lang of languagesSet) {
+    languages.push(reversedLangDict[lang]);
+  }
+  return languages;
+};
+
 // prepare and process info
 const initialProcessing = async e => {
   let info = [], folderName, files = e.target.files,
@@ -466,8 +508,14 @@ const initialProcessing = async e => {
     }
   }
 
+  // Simplified Chinese was added in 1.60.54, remove it for older versions
   if(olderThan(version, '1.60.54')) {
     delete LANGUAGE_DICT['zh_cn'];
+  }
+
+  // starting from 1.68.154 there are no GDFBinary*.dll files, lang detection is different
+  if(!olderThan(version, '1.68.154')) {
+    languages = detectLanguages(filesInfo);
   }
 
   if(languages.length == 0 || languages.length == Object.keys(LANGUAGE_DICT).length)
