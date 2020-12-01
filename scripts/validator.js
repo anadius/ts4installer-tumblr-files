@@ -588,9 +588,37 @@ $('#directory-picker').on('change', async e => {
   }
 });
 
+let lastFormatCopied = 'Disqus';
+
 $('#report').on('copy', e => {
   e.originalEvent.clipboardData.setData('text/plain', e.target.value);
+  lastFormatCopied = e.target.parentElement.id.substr(2);
   e.preventDefault();
+});
+
+let intervalID = null;
+let oldActive = 'BODY';
+
+const checkActive = () => {
+  if(
+    oldActive !== 'IFRAME'
+    && document.activeElement.tagName.toUpperCase() === 'IFRAME'
+    && lastFormatCopied !== 'Disqus'
+  ) {
+    oldActive = 'IFRAME';
+    alert('Comments on this page are provided by Disqus. If you want to post '
+          + 'the validator result here copy the Disqus format, not the '
+          + lastFormatCopied + ' one.');
+  }
+};
+
+$('#disqus_thread').mouseenter(e => {
+  oldActive = document.activeElement.tagName.toUpperCase();
+  intervalID = window.setInterval(checkActive, 100); 
+});
+
+$('#disqus_thread').mouseleave(e => {
+  clearInterval(window.intervalID); 
 });
 
 })();
