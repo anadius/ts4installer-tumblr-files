@@ -259,8 +259,18 @@ const validate = async (version, filesInfo, info, quickScan, legit, ignoredLangu
 
   for(let path of Object.keys(userHashes)) {
     let hash = userHashes[path];
-    if(hash !== null && hash !== serverHashes[path])
-      mismatch.push(path);
+    if(hash !== null) {
+      // single hash
+      if(typeof serverHashes[path] === 'string') {
+        if(hash !== serverHashes[path])
+          mismatch.push(path);
+      }
+      // array of hashes
+      else {
+        if(serverHashes[path].indexOf(hash) === -1)
+          mismatch.push(path);
+      }
+    }
     delete serverHashes[path];
   }
 
