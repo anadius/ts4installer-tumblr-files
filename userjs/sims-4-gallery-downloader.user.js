@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name        TS4 gallery downloader
+// @description Download households, lots and rooms from The Sims 4 Gallery website
 // @author      anadius
 // @match       *://www.ea.com/*/games/the-sims/the-sims-4/pc/gallery*
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
-// @version     2.1.1
+// @version     2.1.2
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
