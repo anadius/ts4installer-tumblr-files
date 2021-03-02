@@ -155,6 +155,15 @@ const updateDict = (source, destination) => {
   }
 };
 
+const lowercaseHashes = hashes => Object.entries(hashes).reduce(
+  (ret, entry) => {
+    let [key, value] = entry;
+    key = key.toLowerCase();
+    if(!key.startsWith('__installer/') && !key.startsWith('soundtrack/') && !key.startsWith('support/'))
+      ret[key] = value.toLowerCase();
+    return ret;
+  }, {});
+
 const getHashes = async (version, legit) => {
   let response = await fetch(`${GITHUB_URL}hashes/${version}.json?${randomLetters()}=${randomLetters()}`);
 
@@ -177,7 +186,7 @@ const getHashes = async (version, legit) => {
   if(newFormat)
     (legit ? addGameCrackedHashes : updateDict)(crack, hashes);
 
-  return hashes;
+  return lowercaseHashes(hashes);
 };
 
 const olderThan = (ver1, ver2) => {
