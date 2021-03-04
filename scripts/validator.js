@@ -179,14 +179,15 @@ const getHashes = async (version, legit) => {
     ({hashes, crack} = hashes);
     newFormat = true;
   }
+  hashes = lowercaseHashes(hashes)
   // if legit, set hashes of Game-cracked to the same as for Game
   if(legit)
     addGameCrackedHashes(hashes, hashes);
   // if it's new format, add crack hashes to Game or Game-cracked (when legit)
   if(newFormat)
-    (legit ? addGameCrackedHashes : updateDict)(crack, hashes);
+    (legit ? addGameCrackedHashes : updateDict)(lowercaseHashes(crack), hashes);
 
-  return lowercaseHashes(hashes);
+  return hashes;
 };
 
 const olderThan = (ver1, ver2) => {
