@@ -552,7 +552,7 @@ const initialProcessing = async e => {
   addInfo(info, 'Folder', folderName);
   addInfo(info, 'Languages', languages);
 
-  validate(version, filesInfo, info, quickScan, legit, ignoredLanguages);
+  await validate(version, filesInfo, info, quickScan, legit, ignoredLanguages);
 };
 
 await addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/core.min.js', 'sha384-j/yjQ26lM3oABUyp5sUcxbbLK/ECT6M4bige54dRtJcbhk+j6M8GAt+ZJYPK3q/l')
@@ -602,7 +602,13 @@ $('#directory-picker').on('change', async e => {
     await initialProcessing(e);
   }
   catch(err) {
-    alert('Some error occured, try using Firefox or Chrome.\n\n' + err);
+    const lines = [];
+    lines.push('Some error occured, try using the newest Firefox or Chrome.');
+    lines.push('If the same happens in those browsers report it with this message:');
+    lines.push('');
+    lines.push(err.name + ': ' + err.message);
+    lines.push(err.stack);
+    alert(lines.join('\n'));
   }
 });
 
