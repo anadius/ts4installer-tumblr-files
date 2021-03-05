@@ -155,12 +155,11 @@ const updateDict = (source, destination) => {
   }
 };
 
-const lowercaseHashes = hashes => Object.entries(hashes).reduce(
+const filterHashes = hashes => Object.entries(hashes).reduce(
   (ret, entry) => {
-    let [key, value] = entry;
-    key = key.toLowerCase();
+    const [key, value] = entry;
     if(!key.startsWith('__installer/') && !key.startsWith('soundtrack/') && !key.startsWith('support/'))
-      ret[key] = value.toLowerCase();
+      ret[key] = value;
     return ret;
   }, {});
 
@@ -172,22 +171,21 @@ const getHashes = async (version, legit) => {
     throw 'hashes not found';
   }
 
-  let hashes = await response.json(), crack, newFormat = false;
+  let hashes = JSON.parse((await response.text()).toLowerCase()), crack, newFormat = false;
 
   // new format: {"crack": {...}, "hashes": {...}}
   if(typeof hashes.hashes == 'object') {
     ({hashes, crack} = hashes);
     newFormat = true;
   }
-  hashes = lowercaseHashes(hashes)
   // if legit, set hashes of Game-cracked to the same as for Game
   if(legit)
     addGameCrackedHashes(hashes, hashes);
   // if it's new format, add crack hashes to Game or Game-cracked (when legit)
   if(newFormat)
-    (legit ? addGameCrackedHashes : updateDict)(lowercaseHashes(crack), hashes);
+    (legit ? addGameCrackedHashes : updateDict)(crack, hashes);
 
-  return hashes;
+  return filterHashes(hashes);
 };
 
 const olderThan = (ver1, ver2) => {
