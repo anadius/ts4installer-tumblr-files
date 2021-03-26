@@ -6,7 +6,8 @@
 // @match       *://www.ea.com/games/the-sims/the-sims-4/pc/gallery*
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
-// @version     2.1.2
+// @connect     www.thesims.com
+// @version     2.1.3
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -14,13 +15,17 @@
 // @grant       GM.getResourceUrl
 // @grant       GM_getResourceURL
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/sims-4-gallery-downloader.png
-// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.67.45
+// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.72.28
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require     https://cdn.jsdelivr.net/npm/long@4.0.0/dist/long.js#sha256-Cp9yM71yBwlF4CLQBfDKHoxvI4BoZgQK5aKPAqiupEQ=
 // @require     https://cdn.jsdelivr.net/npm/file-saver@2.0.1/dist/FileSaver.min.js#sha256-Sf4Tr1mzejErqH+d3jzEfBiRJAVygvjfwUbgYn92yOU=
 // @require     https://cdn.jsdelivr.net/npm/jszip@3.2.0/dist/jszip.min.js#sha256-VwkT6wiZwXUbi2b4BOR1i5hw43XMzVsP88kpesvRYfU=
 // @require     https://cdn.jsdelivr.net/npm/protobufjs@6.8.8/dist/protobuf.min.js#sha256-VPK6lQo4BEjkmYz6rFWbuntzvMJmX45mSiLXgcLHCLE=
 // ==/UserScript==
+
+const KEYS_TO_SKIP = [
+  'EA.Sims4.Network.TrayMetadata.SpecificData.version'
+];
 
 const TRAY_ITEM_URL = 'https://www.thesims.com/api/gallery/v1/sims/{UUID}';
 const TRAY_ITEM_URL_2 = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.json';
@@ -55,11 +60,22 @@ const reportError = e => {
   alert(e.stack);
 };
 
-const xhr = details => new Promise(resolve => {
+const xhr = details => new Promise((resolve, reject) => {
+  const stack = new Error().stack;
   GM.xmlHttpRequest(Object.assign(
     {method: 'GET'},
     details,
-    {onload: res => { resolve(res.response); }}
+    {
+      onload: res => { resolve(res.response); },
+      onerror: res => {
+        console.log(res);
+        reject({
+          name: 'GMXHRError',
+          message: `XHR for URL ${details.url} returned status code ${res.status}`,
+          stack: stack
+        });
+      }
+    }
   ));
 });
 
@@ -152,6 +168,7 @@ const parseMessageObj = messageObj => {
   const messageClass = root.lookupTypeOrEnum(messageKey.join('.'));
   const parsedMessage = {};
   for(let i=0, l=keys.length, _; i<l; ++i) {
+    if(KEYS_TO_SKIP.includes(keys[i])) continue;
     let key = normalizeKey(keys[i]);
     let value = messageObj[keys[i]];
     const valueType = typeof value;
@@ -176,12 +193,32 @@ const parseMessageObj = messageObj => {
 };
 
 const getTrayItem = async (uuid, guid, folder) => {
-  let result = await fetch(TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)));
-  let message = await result.json();
+  let message;
 
-  if(typeof message.error !== 'undefined') {
-    result = await fetch(TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid));
-    message = await result.json();
+  try {
+    message = await xhr({
+      url: TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)),
+      responseType: 'json',
+      headers: {
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': ''
+      }
+    });
+  }
+  catch(e) {
+    if(e.name === 'GMXHRError') message = null;
+    else throw e;
+  }
+
+  if(message === null || typeof message.error !== 'undefined') {
+    message = await xhr({
+      url: TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
+      responseType: 'json',
+      headers: {
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cookie': ''
+      }
+    });
   }
 
   const [parsedMessage, messageClass] = parseMessageObj(message);
@@ -252,7 +289,7 @@ const getDataItem = async (guid, folder, type, id) => {
       return resultArray.buffer;
     }
     catch(ignore) {
-    	return response;
+      return response;
     }
   }
   else
