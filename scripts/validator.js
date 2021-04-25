@@ -163,7 +163,20 @@ const filterHashes = hashes => Object.entries(hashes).reduce(
     return ret;
   }, {});
 
-const getHashes = async (version, legit) => {
+const pickCrack = (filesInfo, info, legit, crack) => {
+  for(const [crack_name, detection_file, crack_hashes] of crack) {
+    const name = 'game' + (legit ? '-cracked' : '') + '/bin/' + detection_file;
+    if(typeof filesInfo[name] !== 'undefined') {
+      addInfo(info, 'Crack used', crack_name.toUpperCase());
+      return crack_hashes;
+    }
+  }
+  
+  addInfo(info, 'Crack used', 'unknown');
+  return crack[0][2]; // first crack on the list
+};
+
+const getHashes = async (version, filesInfo, info, legit) => {
   let response = await fetch(`${GITHUB_URL}hashes/${version}.json?${randomLetters()}=${randomLetters()}`);
 
   if(!response.ok) {
@@ -171,13 +184,27 @@ const getHashes = async (version, legit) => {
     throw 'hashes not found';
   }
 
-  let hashes = JSON.parse((await response.text()).toLowerCase()), crack, newFormat = false;
+  let all_hashes = JSON.parse((await response.text()).toLowerCase()), hash_version = 1, hashes, crack, newFormat = false;
 
   // new format: {"crack": {...}, "hashes": {...}}
-  if(typeof hashes.hashes == 'object') {
-    ({hashes, crack} = hashes);
+  if(typeof all_hashes.hashes == 'object') {
+    hash_version = 2;
+    ({hashes, crack} = all_hashes);
     newFormat = true;
+
+    // even newer version
+    if(typeof all_hashes.version !== 'undefined') {
+      hash_version = all_hashes.version;
+    }
   }
+  else {
+    hashes = all_hashes;
+  }
+
+  if(hash_version > 2) {
+    crack = pickCrack(filesInfo, info, legit, crack);
+  }
+
   // if legit, set hashes of Game-cracked to the same as for Game
   if(legit)
     addGameCrackedHashes(hashes, hashes);
@@ -251,7 +278,7 @@ const detectMissingDLCs = (missing, paths, info, version) => {
 // validate game files
 const validate = async (version, filesInfo, info, quickScan, legit, ignoredLanguages) => {
   let missing = [], unknown = [], mismatch = [], dlcFiles = {},
-      serverHashes = await getHashes(version, legit);
+      serverHashes = await getHashes(version, filesInfo, info, legit);
 
   for(let path of Object.keys(filesInfo)) {
     if(typeof serverHashes[path] == 'undefined') {
@@ -364,8 +391,8 @@ const getGameVersion = async file => {
   return await getVersionFromFile(file, /^\s*gameversion\s*=\s*([\d\.]+)\s*$/m)
 };
 
-// get version from codex.cfg
-const getCODEXCrackVersion = async file => {
+// get version from codex.cfg or anadius.cfg
+const getCrackVersion = async file => {
   return await getVersionFromFile(file, /^\s*"Version"\s+"([\d\.]+)"\s*$/m)
 };
 
@@ -388,16 +415,23 @@ const getVersion = async (filesInfo, info) => {
     wrongDir = false;
     legit = true;
   }
-  tmp = filesInfo['game' + (legit ? '-cracked' : '') + '/bin/codex.cfg'];
+  tmp = filesInfo['game' + (legit ? '-cracked' : '') + '/bin/anadius.cfg'];
   if(typeof tmp !== 'undefined') {
-    crackVersion = await getCODEXCrackVersion(tmp.file);
+    crackVersion = await getCrackVersion(tmp.file);
     wrongDir = false;
   }
+  if(crackVersion === null) {
+    tmp = filesInfo['game' + (legit ? '-cracked' : '') + '/bin/codex.cfg'];
+    if(typeof tmp !== 'undefined') {
+      crackVersion = await getCrackVersion(tmp.file);
+      wrongDir = false;
+    }
+  }
 
-  addInfo(info, 'Game version', gameVersion);
+  addInfo(info, 'Game version', gameVersion || 'not detected');
   if(legit)
     addInfo(info, 'Game-cracked version', gameCrackedVersion || 'not detected');
-  addInfo(info, 'Crack version', crackVersion);
+  addInfo(info, 'Crack version', crackVersion || 'not detected');
 
   return [gameVersion || gameCrackedVersion || crackVersion, legit, wrongDir];
 };
@@ -522,6 +556,9 @@ const initialProcessing = async e => {
       if(version === null || version.match(/^\d+\.\d+\.\d+\.\d+$/) === null) {
         alert('Incorrect game version.');
         return;
+      }
+      else {
+        addInfo(info, 'Game version (user input)', version);
       }
     }
   }
