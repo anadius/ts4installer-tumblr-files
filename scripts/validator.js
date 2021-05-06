@@ -101,7 +101,7 @@ const generateReports = (info) => {
 };
 
 const alwaysHash = path => (
-  path.match(/\/bin(?:_le)?\/ts4(?:_x64)?\.exe?/) !== null
+  path.match(/\/bin(?:_le)?\/(?:ts4(?:_x64)?\.exe|anadius\d|orangeemu)/) !== null
   // path.endsWith('.exe') && path.indexOf('/bin/ts4') > -1
 );
 
