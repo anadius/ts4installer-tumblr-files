@@ -652,9 +652,12 @@ $('#directory-picker').on('change', async e => {
 let lastFormatCopied = 'Disqus';
 
 $('#report').on('copy', e => {
-  e.originalEvent.clipboardData.setData('text/plain', e.target.value);
+  let result = e.target.value;
+  e.originalEvent.clipboardData.setData('text/plain', result);
   lastFormatCopied = e.target.parentElement.id.substr(2);
   e.preventDefault();
+  if(result.length > 2000 && lastFormatCopied == 'Discord')
+    $('#discord_long').modal('show');
 });
 
 let intervalID = null;
@@ -667,9 +670,8 @@ const checkActive = () => {
     && lastFormatCopied !== 'Disqus'
   ) {
     oldActive = 'IFRAME';
-    alert('Comments on this page are provided by Disqus. If you want to post '
-          + 'the validator result here copy the Disqus format, not the '
-          + lastFormatCopied + ' one.');
+    $('#last_format_copied').html(lastFormatCopied);
+    $('#bad_format').modal('show');
   }
 };
 
