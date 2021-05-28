@@ -546,6 +546,10 @@ const initialProcessing = async e => {
   if(version === null) {
     if(
         wrongDir &&
+        typeof filesInfo['data/client/clientfullbuild0.package'] == 'undefined' &&
+        typeof filesInfo['data/client/clientdeltabuild0.package'] == 'undefined' &&
+        typeof filesInfo['data/client/clientfullbuild8.package'] == 'undefined' &&
+        typeof filesInfo['data/client/clientdeltabuild8.package'] == 'undefined' &&
         typeof filesInfo['data/simulation/simulationfullbuild0.package'] == 'undefined' &&
         typeof filesInfo['data/simulation/simulationdeltabuild0.package'] == 'undefined') {
       alert('Could not detect game version. Wrong directory selected.');
