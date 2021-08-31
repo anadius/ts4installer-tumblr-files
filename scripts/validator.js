@@ -337,7 +337,8 @@ const readAs = (file, type) => new Promise(resolve => {
 const prog2percent = prog => Math.min(100, 100 * prog).toFixed() + '%';
 
 const calculateMD5 = async file => {
-  let md5 = CryptoJS.algo.MD5.create();
+  let md5 = await hashwasm.createMD5();
+  md5.init();
 
   $('#hashing-name').html(file.webkitRelativePath);
   for(let size=file.size, chunkSize = 2*1024*1024, offset=0; offset<size; offset+=chunkSize) {
@@ -346,14 +347,12 @@ const calculateMD5 = async file => {
       .css('width', progress)
       .html(progress);
     let fileSlice = file.slice(offset, offset + chunkSize),
-        chunk = await readAs(fileSlice, 'arraybuffer'),
-        wordArray = CryptoJS.lib.WordArray.create(chunk);
-    md5.update(wordArray);
+        chunk = await readAs(fileSlice, 'arraybuffer');
+    md5.update(new Uint8Array(chunk));
   }
   $('#hashing-progress').css('width', '100%').html('100%');
 
-  let hash = md5.finalize();
-  return hash.toString(CryptoJS.enc.Hex).toLowerCase();
+  return md5.digest().toLowerCase();
 };
 
 // add hashes from .md5 file to `filesInfo`
@@ -596,11 +595,7 @@ const initialProcessing = async e => {
   await validate(version, filesInfo, info, quickScan, legit, ignoredLanguages);
 };
 
-await addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/core.min.js', 'sha384-j/yjQ26lM3oABUyp5sUcxbbLK/ECT6M4bige54dRtJcbhk+j6M8GAt+ZJYPK3q/l')
-await Promise.all([
-  addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/md5.min.js', 'sha384-FvUg0oOjwQ1uec6J22LkHkEihYZfQYU5BaPKoUpt5OUVr7+CKyX2o5NC/fOqFGih'),
-  addJS('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/lib-typedarrays.min.js', 'sha384-ntzxweGwO+bdybZB6NfRCrCbK1X5djqon4rquDPIQFe1jBTZ5KZ1qnoTZCup5Nwh')
-]);
+await addJS('https://cdn.jsdelivr.net/npm/hash-wasm@4.9.0/dist/md5.umd.min.js', 'sha256-MtseEx7eZnOf4aGwLrvd5j6pzR/+Uc2wqGlZNJeUCI0=');
 
 $('#user-input').append(`  <div class="form-check">
     <input class="form-check-input" type="checkbox" id="quick-scan">
