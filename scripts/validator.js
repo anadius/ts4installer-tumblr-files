@@ -336,12 +336,14 @@ const readAs = (file, type) => new Promise(resolve => {
 
 const prog2percent = prog => Math.min(100, 100 * prog).toFixed() + '%';
 
+let md5 = null;
 const calculateMD5 = async file => {
-  let md5 = await hashwasm.createMD5();
+  if(md5 === null)
+    md5 = await hashwasm.createMD5();
   md5.init();
 
   $('#hashing-name').html(file.webkitRelativePath);
-  for(let size=file.size, chunkSize = 2*1024*1024, offset=0; offset<size; offset+=chunkSize) {
+  for(let size=file.size, chunkSize = 8*1024*1024, offset=0; offset<size; offset+=chunkSize) {
     let progress = prog2percent(offset / size);
     $('#hashing-progress')
       .css('width', progress)
@@ -638,6 +640,7 @@ $('#directory-picker').on('change', async e => {
     await initialProcessing(e);
   }
   catch(err) {
+    console.log([err]);
     const lines = [];
     lines.push('Some error occured, try using the newest Firefox or Chrome.');
     lines.push('If the same happens in those browsers report it with this message:');
