@@ -7,7 +7,7 @@
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
-// @version     2.1.3
+// @version     2.1.4
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -22,6 +22,11 @@
 // @require     https://cdn.jsdelivr.net/npm/jszip@3.2.0/dist/jszip.min.js#sha256-VwkT6wiZwXUbi2b4BOR1i5hw43XMzVsP88kpesvRYfU=
 // @require     https://cdn.jsdelivr.net/npm/protobufjs@6.8.8/dist/protobuf.min.js#sha256-VPK6lQo4BEjkmYz6rFWbuntzvMJmX45mSiLXgcLHCLE=
 // ==/UserScript==
+
+/* global protobuf, saveAs, JSZip, Long */
+/* eslint curly: 0 */
+/* eslint no-sequences: 0 */
+/* eslint no-return-assign: 0 */
 
 const KEYS_TO_SKIP = [
   'EA.Sims4.Network.TrayMetadata.SpecificData.version'
@@ -132,8 +137,8 @@ const getRandomId = () => {
 };
 
 const createPrefix = num => {
-  arr = new ArrayBuffer(8);
-  view = new DataView(arr);
+  const arr = new ArrayBuffer(8);
+  const view = new DataView(arr);
   view.setUint32(4, num, true);
   return new Uint8Array(arr);
 };
@@ -144,7 +149,7 @@ const parseMessageArray = messageArray => {
   const parsedArray = [];
   messageArray.forEach(arrayItem => {
     const valueType = typeof arrayItem;
-    let value;
+    let value, _;
     if(valueType === 'object') {
       if(Array.isArray(arrayItem))
         value = parseMessageArray(arrayItem);
