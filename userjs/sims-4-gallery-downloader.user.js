@@ -7,7 +7,7 @@
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
-// @version     2.1.4
+// @version     2.1.5
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -60,26 +60,34 @@ const getRandomIntInclusive = (min, max) => {
 };
 
 const reportError = e => {
-  alert(e.name);
-  alert(e.message);
-  alert(e.stack);
+  if(e.name && e.message && e.stack)
+    alert(`${e.name}\n\n${e.message}\n\n${e.stack}`);
+  else
+    alert(e);
 };
 
 const xhr = details => new Promise((resolve, reject) => {
   const stack = new Error().stack;
+  const reject_xhr = res => {
+    console.log(res);
+    reject({
+      name: 'GMXHRError',
+      message: `XHR for URL ${details.url} returned status code ${res.status}`,
+      stack: stack,
+      status: res.status
+    });
+  };
   GM.xmlHttpRequest(Object.assign(
     {method: 'GET'},
     details,
     {
-      onload: res => { resolve(res.response); },
-      onerror: res => {
-        console.log(res);
-        reject({
-          name: 'GMXHRError',
-          message: `XHR for URL ${details.url} returned status code ${res.status}`,
-          stack: stack
-        });
-      }
+      onload: res => {
+        if(res.status === 404)
+          reject_xhr(res);
+        else
+          resolve(res.response);
+      },
+      onerror: res => reject_xhr
     }
   ));
 });
@@ -216,15 +224,24 @@ const getTrayItem = async (uuid, guid, folder) => {
   }
 
   if(message === null || typeof message.error !== 'undefined') {
-    message = await xhr({
-      url: TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
-      responseType: 'json',
-      headers: {
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cookie': ''
-      }
-    });
+    try {
+      message = await xhr({
+        url: TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
+        responseType: 'json',
+        headers: {
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': ''
+        }
+      });
+    }
+    catch(e) {
+      if(e.name === 'GMXHRError' && e.status === 404) message = null;
+      else throw e;
+    }
   }
+
+  if(message === null || typeof message.error !== 'undefined')
+    throw "Can't download tray file. This item was most probably deleted.";
 
   const [parsedMessage, messageClass] = parseMessageObj(message);
   parsedMessage.id = getRandomId();
@@ -259,10 +276,19 @@ const getDataItem = (guid, folder) => xhr({
 });
 */
 const getDataItem = async (guid, folder, type, id) => {
-  const response = await xhr({
-    url: DATA_ITEM_URL.replace('{FOLDER}', folder).replace('{GUID}', guid),
-    responseType: 'arraybuffer'
-  });
+  let response;
+  try {
+    response = await xhr({
+      url: DATA_ITEM_URL.replace('{FOLDER}', folder).replace('{GUID}', guid),
+      responseType: 'arraybuffer'
+    });
+  }
+  catch(e) {
+    if(e.name === 'GMXHRError' && e.status === 404)
+      throw "Can't download data file. This item was most probably deleted.";
+    else
+      throw e;
+  }
   if(type === EXCHANGE_HOUSEHOLD) {
     const messageClass = root.lookupTypeOrEnum('EA.Sims4.Network.FamilyData');
     const prefix = new Uint8Array(response, 0, 4); // read first 4 bytes
