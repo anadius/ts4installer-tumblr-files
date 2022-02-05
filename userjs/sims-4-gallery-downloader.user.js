@@ -7,7 +7,7 @@
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
-// @version     2.1.5
+// @version     2.1.6
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -479,3 +479,17 @@ a.style.lineHeight = '40px';
 a.style.padding = '0 15px';
 a.style.zIndex = 99999;
 document.body.appendChild(a);
+
+/* add some info */
+
+const div = document.createElement('div');
+div.innerHTML = atob('SW4gY2FzZSB5b3UgZGlkbid0IGtub3cgeWV0LCBJIG1hZGUgb25saW5lIGNyYWNrIHRoYXQgbGV0cyB5b3UgYWNjZXNzIHRoZSBpbi1nYW1lIGdhbGxlcnkuPGJyPllvdSBjYW4gZ2V0IGl0IHdpdGggU2ltcyA0IFVwZGF0ZXIsIHdpdGggbXkgcmVwYWNrLCBvciBkb3dubG9hZCBqdXN0IHRoZSBjcmFjayBmcm9tICJjcmFjayBvbmx5IiBzZWN0aW9uLjxicj5BbGwgb2YgdGhhdCBjYW4gYmUgZm91bmQgb24gPGEgaHJlZj0iaHR0cHM6Ly9jcy5yaW4ucnUvZm9ydW0vdmlld3RvcGljLnBocD9wPTkzMDIzNiNwOTMwMjM2Ij5DUyBSSU4gZm9ydW08L2E+Lg==');
+div.style.background = 'white';
+div.style.color = 'red';
+div.style.position = 'absolute';
+div.style.top = '40px';
+div.style.left = 0;
+div.style.lineHeight = 1;
+div.style.padding = '15px';
+div.style.zIndex = 99999;
+document.body.appendChild(div);
