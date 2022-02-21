@@ -176,6 +176,24 @@ const pickCrack = (filesInfo, info, legit, crack) => {
   return crack[0][2]; // first crack on the list
 };
 
+const parseCracks = cracks => {
+  const filtered = {};
+  for(const crack of cracks) {
+    if(typeof filtered[crack[0]] === 'undefined')
+      filtered[crack[0]] = crack;
+    else {
+      const hashes = filtered[crack[0]][2];
+      for(const [file, hash] of Object.entries(crack[2])) {
+        if(typeof hashes[file] === "string")
+          hashes[file] = [hashes[file], hash];
+        else
+          hashes[file].push(hash);
+      }
+    }
+  }
+  return Object.values(filtered);
+};
+
 const getHashes = async (version, filesInfo, info, legit) => {
   let response = await fetch(`${GITHUB_URL}hashes/${version}.json?${randomLetters()}=${randomLetters()}`);
 
@@ -199,6 +217,10 @@ const getHashes = async (version, filesInfo, info, legit) => {
   }
   else {
     hashes = all_hashes;
+  }
+
+  if(hash_version > 3) {
+    crack = parseCracks(crack);
   }
 
   if(hash_version > 2) {
