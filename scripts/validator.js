@@ -379,27 +379,6 @@ const calculateMD5 = async file => {
   return md5.digest().toLowerCase();
 };
 
-// add hashes from .md5 file to `filesInfo`
-const processMD5 = async (file, info) => {
-  let text = await readAs(file, 'text'),
-      lines = text.split(/[\r\n]+/);
-
-  for(let line of lines) {
-    let matches = line.match(/^(.{32})\s\*(.*)$/);
-    if(matches) {
-      let [_, hash, path] = matches,
-          pathElems = path.toLowerCase().split(/\\|\//);
-      pathElems.shift();
-      path = pathElems.join('/');
-
-      try {
-        info[path].hash = hash.toLowerCase();
-      }
-      catch(ignore) {}
-    }
-  }
-};
-
 const getVersionFromFile = async (file, regexp) => {
   let contents = await readAs(file, 'text'),
     matches = contents.match(regexp);
@@ -552,7 +531,6 @@ const detectLanguages = filesInfo => {
 // prepare and process info
 const initialProcessing = async e => {
   let info = [], folderName, files = e.target.files,
-      md5File = $('#md5-picker')[0].files[0],
       quickScan = $('#quick-scan').prop('checked');
 
   if(files.length > 0)
@@ -610,9 +588,6 @@ const initialProcessing = async e => {
 
   $('#user-input').hide();
 
-  if(typeof md5File !== 'undefined')
-    await processMD5(md5File, filesInfo);
-
   addInfo(info, 'Folder', folderName);
   addInfo(info, 'Languages', languages);
 
@@ -624,10 +599,6 @@ await addJS('https://cdn.jsdelivr.net/npm/hash-wasm@4.9.0/dist/md5.umd.min.js', 
 $('#user-input').append(`  <div class="form-check">
     <input class="form-check-input" type="checkbox" id="quick-scan">
     <label class="form-check-label" for="quick-scan">Quick scan (shows only missing and unknown files)</label>
-  </div>
-  <div class="form-group">
-    <label for="md5-picker">Select .md5 file (optional)</label>
-    <input type="file" class="form-control-file" id="md5-picker" accept=".md5">
   </div>
   <div class="form-group">
     <label for="directory-picker">Select your The Sims 4 installation directory (the one with "Data", "Delta", "Game" and other folders inside)</label>
@@ -643,17 +614,6 @@ $('#report').after(`<div class="template" style="display: none">
     </div>
   </div>
 </div>`);
-
-$('#quick-scan').on('change', e => {
-  if($(e.target).prop('checked')) {
-    $('#md5-picker').prop('disabled', 'disabled');
-    $('#md5info').hide();
-  }
-  else {
-    $('#md5-picker').prop('disabled', '');
-    $('#md5info').show();
-  }
-});
 
 $('#quick-scan').click();
 
