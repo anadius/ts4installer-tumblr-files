@@ -677,11 +677,15 @@ let lastFormatCopied = 'Disqus';
 
 $('#report').on('copy', e => {
   let result = e.target.value;
-  e.originalEvent.clipboardData.setData('text/plain', result);
   lastFormatCopied = e.target.parentElement.id.substr(2);
-  e.preventDefault();
-  if(result.length > 2000 && lastFormatCopied == 'Discord')
+  if(result.length > 2000 && lastFormatCopied == 'Discord') {
     $('#discord_long').modal('show');
+    let blanks = 4001 - result.length;
+    if(blanks > 0)
+      result += '\u200B'.repeat(blanks);
+  }
+  e.originalEvent.clipboardData.setData('text/plain', result);
+  e.preventDefault();
 });
 
 let intervalID = null;
