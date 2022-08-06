@@ -52,6 +52,17 @@ const LANGUAGE_DICT = {
   'zh_tw': 'cht_cn'
 };
 
+const downloadBlob = (blob, name) => {
+  const link = document.createElement('a');
+  const url = window.URL.createObjectURL(blob);
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  window.URL.revokeObjectURL(url);
+  link.remove();
+};
+
 const randomLetters = () => Math.random().toString(36).replace(/[^a-z]+/g, '');
 
 const addInfo = (info, name, value, list) => {
@@ -640,9 +651,7 @@ $('#report').on('copy', e => {
   lastFormatCopied = e.target.parentElement.id.substr(2);
   if(result.length > 2000 && lastFormatCopied == 'Discord') {
     $('#discord_long').modal('show');
-    let blanks = 4001 - result.length;
-    if(blanks > 0)
-      result += '\u200B'.repeat(blanks);
+    downloadBlob(new Blob([result]), 'validator_result.yaml');
   }
   e.originalEvent.clipboardData.setData('text/plain', result);
   e.preventDefault();
