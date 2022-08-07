@@ -183,8 +183,8 @@ const pickCrack = (filesInfo, info, legit, crack) => {
     }
   }
   
-  addInfo(info, 'Crack used', 'unknown');
-  return crack[0][2]; // first crack on the list
+  addInfo(info, 'Crack used', 'unknown, assuming legit game');
+  return {};
 };
 
 const parseCracks = cracks => {
