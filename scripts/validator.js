@@ -52,6 +52,19 @@ const LANGUAGE_DICT = {
   'zh_tw': 'cht_cn'
 };
 
+const UNKNOWN_FILES_FILTERING = [
+  ['Steam files', /^(?:__overlay\/(?:overlayinjector\.exe|steam_api\.dll)|data\/client\/tmp.txt|debug.log|eastore.ini|installscript.vdf|steam_appid.txt)$/i],
+  ['FitGirl repack files', /^(?:_redist\/(?:dxwebsetup\.exe|fitgirl\.md5|quicksfv\.exe|quicksfv\.ini)|language changer\/.*?\.reg)$/i],
+  ['Uninstaller files', /^unins\d{3}\.(?:dat|exe)$/i],
+];
+
+// https://stackoverflow.com/a/50636286/2428152
+function partition(array, filter) {
+  let pass = [], fail = [];
+  array.forEach((e, idx, arr) => (filter(e, idx, arr) ? pass : fail).push(e));
+  return [pass, fail];
+}
+
 const downloadBlob = (blob, name) => {
   const link = document.createElement('a');
   const url = window.URL.createObjectURL(blob);
@@ -376,6 +389,16 @@ const validate = async (version, filesInfo, info, quickScan, legit, ignoredLangu
 
   addInfo(info, 'Hash mismatch', mismatch.sort(), true);
   addInfo(info, 'Missing files', missing.sort(), true);
+
+  // additional filtering of unknown files
+  for(const [name, pattern] of UNKNOWN_FILES_FILTERING) {
+    let filtered;
+    [unknown, filtered] = partition(unknown, x => x.match(pattern) === null);
+    if(filtered.length > 0) {
+      addInfo(info, name, filtered.sort(), true);
+    }
+  }
+
   addInfo(info, 'Unknown files', unknown.sort(), true);
   generateReports(info);
 };
