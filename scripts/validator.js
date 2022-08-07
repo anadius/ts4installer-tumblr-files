@@ -65,17 +65,23 @@ const downloadBlob = (blob, name) => {
 
 const randomLetters = () => Math.random().toString(36).replace(/[^a-z]+/g, '');
 
-const addInfo = (info, name, value, list) => {
+const addInfo = (info, name, value, list, edit) => {
   if(typeof list == 'undefined')
     list = false;
+  if(typeof edit == 'undefined')
+    edit = false;
 
   if(Array.isArray(value)) {
     value = value.join(list ? '\n' : ', ');
   }
   
   if(typeof value == 'string') {
-    if(value != null)
+    if(edit) {
+      info.find(x => x[0] === name)[1] += value;
+    }
+    else {
       info.push([name, value, list]);
+    }
   }
 }
 
@@ -291,8 +297,10 @@ const detectMissingDLCs = (missing, paths, info, version) => {
   let pattern = new RegExp('^(' + Array.from(folders).join('|') + ')/'),
       should_filter = folders.size > 0;
 
+  let LEinstalled = null;
   if(!olderThan(version, '1.58.63')) {
-    addInfo(info, 'Legacy Edition', (folders.has('delta_le') ? 'not ' : '') + 'installed');
+    LEinstalled = !folders.has('delta_le');
+    addInfo(info, 'Legacy Edition', (LEinstalled ? '' : 'not ') + 'installed');
     folders.delete('delta_le');
   }
 
@@ -303,9 +311,8 @@ const detectMissingDLCs = (missing, paths, info, version) => {
     );
 
   if(should_filter)
-    return missing.filter(x => x.match(pattern) === null);
-  else
-    return missing;
+    missing = missing.filter(x => x.match(pattern) === null);
+  return [missing, LEinstalled];
 };
 
 // validate game files
@@ -347,7 +354,25 @@ const validate = async (version, filesInfo, info, quickScan, legit, ignoredLangu
     let pattern = new RegExp('strings_(' + ignoredLanguages.join('|') + ').package$');
     missing = missing.filter(x => x.match(pattern) === null);
   }
-  missing = detectMissingDLCs(missing, Object.keys(userHashes), info, version);
+  let LEinstalled;
+  [missing, LEinstalled] = detectMissingDLCs(missing, Object.keys(userHashes), info, version);
+
+  if(LEinstalled === true) {
+    const filteredMissing = missing.filter(x => x.match(/^delta_le\/.*?\/strings_.{3}_.{2}\.package$/i) === null);
+    if(missing.length !== filteredMissing.length && !filteredMissing.some(x => x.match(/^delta_le\//i))) {
+      // we were missing only the lang files
+      missing = filteredMissing;
+      addInfo(info, 'Legacy Edition', ', missing lang files', undefined, true);
+    }
+  }
+  else if(LEinstalled === false) {
+    const filteredMissing = missing.filter(x => x.match(/^game\/bin_le\//i) === null);
+    if(missing.length !== filteredMissing.length) {
+      // we don't care about Bin_LE folder, it's for Legacy Edition anyway
+      missing = filteredMissing;
+      addInfo(info, 'Legacy Edition', ', no Bin_LE', undefined, true);
+    }
+  }
 
   addInfo(info, 'Hash mismatch', mismatch.sort(), true);
   addInfo(info, 'Missing files', missing.sort(), true);
