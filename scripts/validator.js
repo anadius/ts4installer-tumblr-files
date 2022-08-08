@@ -54,7 +54,7 @@ const LANGUAGE_DICT = {
 
 const UNKNOWN_FILES_FILTERING = [
   ['Steam files', /^(?:__overlay\/(?:overlayinjector\.exe|steam_api\.dll)|data\/client\/tmp.txt|debug.log|eastore.ini|installscript.vdf|steam_appid.txt)$/i],
-  ['FitGirl repack files', /^(?:_redist\/(?:dxwebsetup\.exe|fitgirl\.md5|quicksfv\.exe|quicksfv\.ini)|language changer\/.*?\.reg)$/i],
+  ['FitGirl repack files', /^(?:_redist\/(?:dxwebsetup\.exe|fitgirl\.md5|quicksfv\.(?:exe|ini)|vc_?redist.*?\.exe)|language changer\/.*?\.reg)$/i],
   ['Uninstaller files', /^unins\d{3}\.(?:dat|exe)$/i],
 ];
 
