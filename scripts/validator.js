@@ -201,7 +201,13 @@ const pickCrack = (filesInfo, info, legit, crack) => {
       return crack_hashes;
     }
   }
-  
+
+  if(legit && crack.length > 0) {
+    const [crack_name, detection_file, crack_hashes] = crack[0];
+    addInfo(info, 'Crack used', crack_name.toUpperCase());
+    return crack_hashes;
+  }
+
   addInfo(info, 'Crack used', 'unknown, assuming legit game');
   return {};
 };
