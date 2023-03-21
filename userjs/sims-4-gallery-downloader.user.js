@@ -7,7 +7,7 @@
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
-// @version     2.1.8
+// @version     2.1.9
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -174,7 +174,7 @@ const parseMessageArray = messageArray => {
 const parseMessageObj = messageObj => {
   const keys = Object.keys(messageObj);
   if(keys.length == 0)
-    return {};
+    return [{}, null];
 
   const messageKey = keys[0].split('.');
   messageKey.pop();
