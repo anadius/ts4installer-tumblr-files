@@ -317,7 +317,7 @@ const detectMissingDLCs = (missing, paths, info, version) => {
       should_filter = folders.size > 0;
 
   let LEinstalled = null;
-  if(!olderThan(version, '1.58.63')) {
+  if(!olderThan(version, '1.58.63') && olderThan(version, '1.97.42')) {
     LEinstalled = !folders.has('delta_le');
     addInfo(info, 'Legacy Edition', (LEinstalled ? '' : 'not ') + 'installed');
     folders.delete('delta_le');
