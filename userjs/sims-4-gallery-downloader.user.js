@@ -7,7 +7,7 @@
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
-// @version     2.1.9
+// @version     2.1.10
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -208,6 +208,7 @@ const parseMessageObj = messageObj => {
 const getTrayItem = async (uuid, guid, folder) => {
   let message;
 
+  /*
   try {
     message = await xhr({
       url: TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)),
@@ -224,6 +225,7 @@ const getTrayItem = async (uuid, guid, folder) => {
   }
 
   if(message === null || typeof message.error !== 'undefined') {
+  */
     try {
       message = await xhr({
         url: TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
@@ -238,7 +240,9 @@ const getTrayItem = async (uuid, guid, folder) => {
       if(e.name === 'GMXHRError' && e.status === 404) message = null;
       else throw e;
     }
+  /*
   }
+  */
 
   if(message === null || typeof message.error !== 'undefined')
     throw "Can't download tray file. This item was most probably deleted.";
