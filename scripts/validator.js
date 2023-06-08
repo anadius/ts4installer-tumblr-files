@@ -222,6 +222,8 @@ const parseCracks = cracks => {
       for(const [file, hash] of Object.entries(crack[2])) {
         if(typeof hashes[file] === "string")
           hashes[file] = [hashes[file], hash];
+        else if(typeof hashes[file] === "undefined")
+          hashes[file] = hash;
         else
           hashes[file].push(hash);
       }
