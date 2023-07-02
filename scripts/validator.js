@@ -56,6 +56,7 @@ const UNKNOWN_FILES_FILTERING = [
   ['Steam files', /^(?:__overlay\/(?:overlayinjector\.exe|steam_api\.dll)|data\/client\/tmp.txt|debug.log|eastore.ini|installscript.vdf|steam_appid.txt)$/i],
   ['FitGirl repack files', /^(?:_redist\/(?:dxwebsetup\.exe|fitgirl\.md5|quicksfv\.(?:exe|ini)|vc_?redist.*?\.exe)|language changer\/.*?\.reg)$/i],
   ['Uninstaller files', /^unins\d{3}\.(?:dat|exe)$/i],
+  ['Mac files', /^sims4_movedlc.log$/i],
 ];
 
 // https://stackoverflow.com/a/50636286/2428152
@@ -193,7 +194,10 @@ const filterHashes = hashes => Object.entries(hashes).reduce(
     return ret;
   }, {});
 
-const pickCrack = (filesInfo, info, legit, crack) => {
+const pickCrack = (filesInfo, info, legit, crack, mac) => {
+  if(mac)
+    return {};
+
   for(const [crack_name, detection_file, crack_hashes] of crack) {
     const name = 'game' + (legit ? '-cracked' : '') + '/bin/' + detection_file;
     if(typeof filesInfo[name] !== 'undefined') {
@@ -232,7 +236,7 @@ const parseCracks = cracks => {
   return Object.values(filtered);
 };
 
-const getHashes = async (version, filesInfo, info, legit) => {
+const getHashes = async (version, filesInfo, info, legit, mac) => {
   let response = await fetch(`${GITHUB_URL}hashes/${version}.json?${randomLetters()}=${randomLetters()}`);
 
   if(!response.ok) {
@@ -262,7 +266,7 @@ const getHashes = async (version, filesInfo, info, legit) => {
   }
 
   if(hash_version > 2) {
-    crack = pickCrack(filesInfo, info, legit, crack);
+    crack = pickCrack(filesInfo, info, legit, crack, mac);
   }
 
   // if legit, set hashes of Game-cracked to the same as for Game
@@ -271,6 +275,13 @@ const getHashes = async (version, filesInfo, info, legit) => {
   // if it's new format, add crack hashes to Game or Game-cracked (when legit)
   if(newFormat)
     (legit ? addGameCrackedHashes : updateDict)(crack, hashes);
+
+  if(mac) {
+    for(const key of Object.keys(hashes)) {
+      if(key.startsWith('data/') || key.startsWith('delta/') || key.startsWith('game/'))
+        delete hashes[key];
+    }
+  }
 
   return filterHashes(hashes);
 };
@@ -337,9 +348,9 @@ const detectMissingDLCs = (missing, paths, info, version) => {
 };
 
 // validate game files
-const validate = async (version, filesInfo, info, quickScan, legit, ignoredLanguages) => {
+const validate = async (version, filesInfo, info, quickScan, legit, ignoredLanguages, mac) => {
   let missing = [], unknown = [], mismatch = [], dlcFiles = {},
-      serverHashes = await getHashes(version, filesInfo, info, legit);
+      serverHashes = await getHashes(version, filesInfo, info, legit, mac);
 
   for(let path of Object.keys(filesInfo)) {
     if(typeof serverHashes[path] == 'undefined') {
@@ -465,8 +476,9 @@ const getCrackVersion = async file => {
   return await getVersionFromFile(file, /^\s*"Version"\s+"([\d\.]+)"\s*$/m)
 };
 
-const getVersion = async (filesInfo, info) => {
+const getVersion = async (filesInfo, info, folderName) => {
   let tmp, legit = false, wrongDir = true,
+      mac = false,
       gameVersion = gameCrackedVersion = crackVersion = null;
 
   tmp = filesInfo['game/bin/default.ini'];
@@ -497,12 +509,24 @@ const getVersion = async (filesInfo, info) => {
     }
   }
 
-  addInfo(info, 'Game version', gameVersion || 'not detected');
-  if(legit)
-    addInfo(info, 'Game-cracked version', gameCrackedVersion || 'not detected');
-  addInfo(info, 'Crack version', crackVersion || 'not detected');
+  if(wrongDir && folderName == 'The Sims 4 Packs') {
+    wrongDir = false;
+    mac = true;
+    const response = await fetch(`${GITHUB_URL}hashes/latest_version.txt`);
+    gameVersion = (await response.text()).trim();
+  }
 
-  return [gameVersion || gameCrackedVersion || crackVersion, legit, wrongDir];
+  if(mac) {
+    addInfo(info, 'Game version', 'Mac detected, using the latest one');
+  }
+  else {
+    addInfo(info, 'Game version', gameVersion || 'not detected');
+    if(legit)
+      addInfo(info, 'Game-cracked version', gameCrackedVersion || 'not detected');
+    addInfo(info, 'Crack version', crackVersion || 'not detected');
+  }
+
+  return [gameVersion || gameCrackedVersion || crackVersion, legit, wrongDir, mac];
 };
 
 // check if file can be ignored - additional files added by repackers, etc.
@@ -518,6 +542,7 @@ const canBeIgnored = path => (
   path == 'dlc-uninstaller.exe' ||
   path == 'dlc.ini' ||
   // from MAC
+  path == '.ds_store' ||
   path.endsWith('/.ds_store') //||
   // safe to ignore, they should not be there but don't affect the game
   // path.endsWith('.rar') ||
@@ -608,9 +633,8 @@ const initialProcessing = async e => {
   }
 
   let [filesInfo, languages] = filterAndDetectLang(files),
-      [version, legit, wrongDir] = await getVersion(filesInfo, info),
+      [version, legit, wrongDir, mac] = await getVersion(filesInfo, info, folderName),
       ignoredLanguages = [];
-
   if(version === null) {
     if(
         wrongDir &&
@@ -624,7 +648,7 @@ const initialProcessing = async e => {
       return;
     }
     else {
-      version = prompt('Could not detect game version. Enter manually (eg. 1.46.18.1020)');
+      version = prompt('Could not detect the game version. Enter it manually (eg. 1.98.158.1020)');
       if(version === null || version.match(/^\d+\.\d+\.\d+\.\d+$/) === null) {
         alert('Incorrect game version.');
         return;
@@ -658,17 +682,23 @@ const initialProcessing = async e => {
   addInfo(info, 'Folder', folderName);
   addInfo(info, 'Languages', languages);
 
-  await validate(version, filesInfo, info, quickScan, legit, ignoredLanguages);
+  await validate(version, filesInfo, info, quickScan, legit, ignoredLanguages, mac);
 };
 
 await addJS('https://cdn.jsdelivr.net/npm/hash-wasm@4.9.0/dist/md5.umd.min.js', 'sha256-MtseEx7eZnOf4aGwLrvd5j6pzR/+Uc2wqGlZNJeUCI0=');
+
+const os_text = (
+  window.navigator.userAgent.toUpperCase().includes(' MAC ')
+  ? 'Packs directory'
+  : 'installation directory (the one with "Data", "Delta", "Game" and other folders inside)'
+);
 
 $('#user-input').append(`  <div class="form-check">
     <input class="form-check-input" type="checkbox" id="quick-scan">
     <label class="form-check-label" for="quick-scan">Quick scan (shows only missing and unknown files)</label>
   </div>
   <div class="form-group">
-    <label for="directory-picker">Select your The Sims 4 installation directory (the one with "Data", "Delta", "Game" and other folders inside)</label>
+    <label for="directory-picker">Select your The Sims 4 ${os_text}</label>
     <input type="file" class="form-control-file" id="directory-picker" webkitdirectory directory>
   </div>`);
 $('#report').after(`<div class="template" style="display: none">
