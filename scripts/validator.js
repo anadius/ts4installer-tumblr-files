@@ -476,6 +476,11 @@ const getCrackVersion = async file => {
   return await getVersionFromFile(file, /^\s*"Version"\s+"([\d\.]+)"\s*$/m)
 };
 
+const getLatestVersion = async () => {
+  const response = await fetch(`${GITHUB_URL}hashes/latest_version.txt`);
+  return (await response.text()).trim();
+};
+
 const getVersion = async (filesInfo, info, folderName) => {
   let tmp, legit = false, wrongDir = true,
       mac = false,
@@ -512,8 +517,7 @@ const getVersion = async (filesInfo, info, folderName) => {
   if(wrongDir && folderName == 'The Sims 4 Packs') {
     wrongDir = false;
     mac = true;
-    const response = await fetch(`${GITHUB_URL}hashes/latest_version.txt`);
-    gameVersion = (await response.text()).trim();
+    gameVersion = await getLatestVersion();
   }
 
   if(mac) {
@@ -648,8 +652,12 @@ const initialProcessing = async e => {
       return;
     }
     else {
-      version = prompt('Could not detect the game version. Enter it manually (eg. 1.98.158.1020)');
-      if(version === null || version.match(/^\d+\.\d+\.\d+\.\d+$/) === null) {
+      version = prompt('Could not detect the game version. Enter it manually (eg. 1.98.158.1020). Leave empty or press cancel to check against the newest game version');
+      if(version === null || version === "") {
+        version = await await getLatestVersion();
+        addInfo(info, 'Game version (newest one)', version);
+      }
+      else if(version.match(/^\d+\.\d+\.\d+\.\d+$/) === null) {
         alert('Incorrect game version.');
         return;
       }
