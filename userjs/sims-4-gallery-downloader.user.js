@@ -7,7 +7,7 @@
 // @connect     sims4cdn.ea.com
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
-// @version     2.1.10
+// @version     2.1.11
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -15,7 +15,7 @@
 // @grant       GM.getResourceUrl
 // @grant       GM_getResourceURL
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/sims-4-gallery-downloader.png
-// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.96.365
+// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.105.332
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require     https://cdn.jsdelivr.net/npm/long@4.0.0/dist/long.js#sha256-Cp9yM71yBwlF4CLQBfDKHoxvI4BoZgQK5aKPAqiupEQ=
 // @require     https://cdn.jsdelivr.net/npm/file-saver@2.0.1/dist/FileSaver.min.js#sha256-Sf4Tr1mzejErqH+d3jzEfBiRJAVygvjfwUbgYn92yOU=
@@ -28,14 +28,9 @@
 /* eslint no-sequences: 0 */
 /* eslint no-return-assign: 0 */
 
-const KEYS_TO_SKIP = [
-  'EA.Sims4.Network.TrayMetadata.SpecificData.version'
-];
-
-const TRAY_ITEM_URL = 'https://www.thesims.com/api/gallery/v1/sims/{UUID}';
-const TRAY_ITEM_URL_2 = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.json';
-const DATA_ITEM_URL = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.dat';
-const IMAGE_URL = 'https://athena.thesims.com/v1/images/{TYPE}/{FOLDER}/{GUID}/{INDEX}.jpg';
+const TRAY_ITEM_URL = 'https://thesims-api.ea.com/api/gallery/v1/sims/{UUID}';
+const DATA_ITEM_URL = 'http://sims4cdn.ea.com/content-prod.ts4/prod/{FOLDER}/{GUID}.dat';
+const IMAGE_URL = 'https://athena.thesims.com/v2/images/{TYPE}/{FOLDER}/{GUID}/{INDEX}.jpg';
 
 const EXCHANGE_HOUSEHOLD = 1;
 const EXCHANGE_BLUEPRINT = 2;
@@ -50,6 +45,14 @@ const BIG_WIDTH = 591;
 const BIG_HEIGHT = 394;
 const SMALL_WIDTH = 300;
 const SMALL_HEIGHT = 200;
+
+const LONG_TYPES = [
+  "sint64",
+  "uint64",
+  "int64",
+  "sfixed64",
+  "fixed64"
+];
 
 /* helper functions */
 
@@ -151,55 +154,77 @@ const createPrefix = num => {
   return new Uint8Array(arr);
 };
 
-const normalizeKey = key => key.split('.').pop();
+const parseValue = (value, fieldType, isParentArray) => {
+  let _;
+  let parsedValue = value;
+  const valueType = typeof value;
+  if(valueType === "object") {
+    if(Array.isArray(value)) {
+      if(isParentArray) {
+        throw "No clue how to handle array of arrays"
+      }
+      parsedValue = parseMessageArray(value, fieldType);
+    }
+    else {
+      [parsedValue, _] = parseMessageObj(value, fieldType);
+    }
+  }
+  else if(valueType === "string") {
+    if(fieldType === "string" || fieldType === "bytes") {
+      // no processing needed
+    }
+    else if(LONG_TYPES.includes(fieldType)) {
+      parsedValue = Long.fromValue(value);
+    }
+    else {
+      // value is enum, lookup the enum and extract the actual value
+      parsedValue = root.lookupEnum(fieldType).values[value.split('.').pop()];
+    }
+  }
 
-const parseMessageArray = messageArray => {
+  return parsedValue;
+};
+
+const parseMessageArray = (messageArray, className) => {
   const parsedArray = [];
   messageArray.forEach(arrayItem => {
-    const valueType = typeof arrayItem;
-    let value, _;
-    if(valueType === 'object') {
-      if(Array.isArray(arrayItem))
-        value = parseMessageArray(arrayItem);
-      else
-        [value, _] = parseMessageObj(arrayItem);
-    }
-    else
-      value = arrayItem;
-    parsedArray.push(value);
+    parsedArray.push(parseValue(arrayItem, className, true));
   });
   return parsedArray;
 };
 
-const parseMessageObj = messageObj => {
-  const keys = Object.keys(messageObj);
-  if(keys.length == 0)
-    return [{}, null];
+const camelToSnakeCase = str => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 
-  const messageKey = keys[0].split('.');
-  messageKey.pop();
-  const messageClass = root.lookupTypeOrEnum(messageKey.join('.'));
+// EA likes to mess things up, in proto files they use snake case, in JSON they use camel case
+// but there are some exceptions, so try both
+const findKeyName = (key, messageClass) => {
+  const fields = messageClass.fields;
+  if(typeof messageClass.fields[key] !== "undefined")
+    return key;
+
+  const key2 = camelToSnakeCase(key);
+  if(typeof messageClass.fields[key2] !== "undefined")
+    return key2;
+
+  const nameParts = [];
+  let msgClass = messageClass;
+  while(msgClass.name !== "" && typeof msgClass.name !== "undefined") {
+    nameParts.unshift(msgClass.name);
+    msgClass = msgClass.parent;
+  }
+  const name = nameParts.join(".");
+  throw `${name} class doesn't have ${key} nor ${key2} key.`
+};
+
+const parseMessageObj = (messageObj, className) => {
+  const keys = Object.keys(messageObj);
+
+  const messageClass = root.lookupType(className);
   const parsedMessage = {};
-  for(let i=0, l=keys.length, _; i<l; ++i) {
-    if(KEYS_TO_SKIP.includes(keys[i])) continue;
-    let key = normalizeKey(keys[i]);
-    let value = messageObj[keys[i]];
-    const valueType = typeof value;
-    if(valueType === 'object') {
-      if(Array.isArray(value))
-        value = parseMessageArray(value);
-      else
-        [value, _] = parseMessageObj(value);
-    }
-    else if(valueType === 'string') {
-      let fieldType = messageClass.fields[key].type;
-      if(fieldType == 'string') {}
-      else if(fieldType == 'bytes') {}
-      else {
-        value = root.lookupTypeOrEnum(fieldType).values[value.split('.').pop()];
-      }
-    }
-    parsedMessage[key] = value;
+  for(let i=0, l=keys.length; i<l; ++i) {
+    // this makes sure that `key` is in `messageClass.fields`
+    const key = findKeyName(keys[i], messageClass);
+    parsedMessage[key] = parseValue(messageObj[keys[i]], messageClass.fields[key].type);
   }
 
   return [parsedMessage, messageClass];
@@ -208,7 +233,6 @@ const parseMessageObj = messageObj => {
 const getTrayItem = async (uuid, guid, folder) => {
   let message;
 
-  /*
   try {
     message = await xhr({
       url: TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)),
@@ -224,37 +248,20 @@ const getTrayItem = async (uuid, guid, folder) => {
     else throw e;
   }
 
-  if(message === null || typeof message.error !== 'undefined') {
-  */
-    try {
-      message = await xhr({
-        url: TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
-        responseType: 'json',
-        headers: {
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Cookie': ''
-        }
-      });
-    }
-    catch(e) {
-      if(e.name === 'GMXHRError' && e.status === 404) message = null;
-      else throw e;
-    }
-  /*
-  }
-  */
-
   if(message === null || typeof message.error !== 'undefined')
     throw "Can't download tray file. This item was most probably deleted.";
 
-  const [parsedMessage, messageClass] = parseMessageObj(message);
+  const [parsedMessage, messageClass] = parseMessageObj(message, "EA.Sims4.Network.TrayMetadata");
+  // generate random ID
   parsedMessage.id = getRandomId();
 
+  // get number of additional images; set sim IDs
   let additional = 0;
   if(parsedMessage.type === EXCHANGE_BLUEPRINT)
     additional = parsedMessage.metadata.bp_metadata.num_thumbnails - 1;
   else if(parsedMessage.type === EXCHANGE_HOUSEHOLD) {
     additional = parsedMessage.metadata.hh_metadata.sim_data.length;
+    // the same logic of making new IDs is used later to fix the main data file
     parsedMessage.metadata.hh_metadata.sim_data.forEach((sim, i) => {
       sim.id = parsedMessage.id.add(i + 1);
     });
@@ -273,12 +280,6 @@ const getTrayItem = async (uuid, guid, folder) => {
 };
 
 /* data file */
-/*
-const getDataItem = (guid, folder) => xhr({
-  url: DATA_ITEM_URL.replace('{FOLDER}', folder).replace('{GUID}', guid),
-  responseType: 'arraybuffer'
-});
-*/
 const getDataItem = async (guid, folder, type, id) => {
   let response;
   try {
@@ -310,7 +311,10 @@ const getDataItem = async (guid, folder, type, id) => {
       sim.sim_id = newIdsDict[sim.sim_id.toString()];
       sim.significant_other = newIdsDict[sim.significant_other.toString()];
       sim.attributes.genealogy_tracker.family_relations.forEach(relation => {
-        relation.sim_id = newIdsDict[relation.sim_id];
+        const newId = newIdsDict[relation.sim_id.toString()];
+        if(typeof newId !== "undefined") {
+          relation.sim_id = newId;
+        }
       });
     });
 
@@ -323,7 +327,8 @@ const getDataItem = async (guid, folder, type, id) => {
       resultArray.set(suffix, 8 + editedMessage.length);
       return resultArray.buffer;
     }
-    catch(ignore) {
+    catch(err) {
+      console.error(err);
       return response;
     }
   }
