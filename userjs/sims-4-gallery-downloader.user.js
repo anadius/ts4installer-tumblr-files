@@ -29,13 +29,25 @@
 /* eslint no-return-assign: 0 */
 
 const KEYS_TO_SKIP = [
-  'EA.Sims4.Network.TrayMetadata.SpecificData.version'
+  'EA.Sims4.Network.TrayMetadata.SpecificData.version',
+    'imageUriType','aspirationId', 'customPronoun'
 ];
+
+const FULL_NAME_TO_SKIP = [
+  '.EA.Sims4.Network.TrayMetadata.SpecificData.version'
+];
+
+const ROOT_PREFIX = 'EA.Sims4.Network';
+const ROOT_PREFIX_2 = 'EA.Sims4';
+const ROOT_TRAYMETADATA_PREFIX = 'EA.Sims4.Network.TrayMetadata';
 
 const TRAY_ITEM_URL = 'https://www.thesims.com/api/gallery/v1/sims/{UUID}';
 const TRAY_ITEM_URL_2 = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.json';
 const DATA_ITEM_URL = 'http://sims4cdn.ea.com/content.ts4/exchange_retail_1/{FOLDER}/{GUID}.dat';
+const DATA_ITEM_URL_2 = 'http://sims4cdn.ea.com/content-prod.ts4/prod/{FOLDER}/{GUID}.dat';
 const IMAGE_URL = 'https://athena.thesims.com/v1/images/{TYPE}/{FOLDER}/{GUID}/{INDEX}.jpg';
+const IMAGE_URL_2 = 'http://sims4cdn.ea.com/content-prod.ts4/prod/{FOLDER}/{GUID}_{INDEX}.jpg';
+const IMAGE_URL_3 = 'https://athena.thesims.com/v2/images/{TYPE}/{FOLDER}/{GUID}/{INDEX}.jpg';
 
 const EXCHANGE_HOUSEHOLD = 1;
 const EXCHANGE_BLUEPRINT = 2;
@@ -153,31 +165,99 @@ const createPrefix = num => {
 
 const normalizeKey = key => key.split('.').pop();
 
-const parseMessageArray = messageArray => {
+const parseMessageArray = (messageArray, messageClass, isNumArr) => {
   const parsedArray = [];
   messageArray.forEach(arrayItem => {
     const valueType = typeof arrayItem;
     let value, _;
     if(valueType === 'object') {
       if(Array.isArray(arrayItem))
-        value = parseMessageArray(arrayItem);
+        value = parseMessageArray(arrayItem, messageClass);
       else
-        [value, _] = parseMessageObj(arrayItem);
-    }
-    else
+        [value, _] = parseMessageObj(arrayItem, messageClass);
+    }else if (isNumArr){
+      value = Number(arrayItem);
+    }else {
       value = arrayItem;
+    }
     parsedArray.push(value);
   });
   return parsedArray;
 };
 
-const parseMessageObj = messageObj => {
-  const keys = Object.keys(messageObj);
-  if(keys.length == 0)
-    return [{}, null];
+const toLine = name => {
+  return name.replace(/([A-Z])/g,"_$1").toLowerCase();
+}
 
-  const messageKey = keys[0].split('.');
-  messageKey.pop();
+
+const parseMessageObj = (messageObj, messageClass) => {
+  if(!messageClass){
+      throw Error("no such messageClass");
+  }
+  const keys = Object.keys(messageObj);
+  if(keys.length == 0){
+      return [{}, null];
+  }
+
+    const parsedMessage = {};
+    for(let i=0, l=keys.length, _; i<l; ++i) {
+        let key = toLine(keys[i]);
+        if(KEYS_TO_SKIP.includes(keys[i])) continue;
+        if(messageClass.fields[key] && FULL_NAME_TO_SKIP.includes(messageClass.fields[key].fullName)) continue;
+        let value = messageObj[keys[i]];
+        const valueType = typeof value;
+
+        if(valueType === 'object') {
+            let childMessageClass
+            const fieldMessageClass = messageClass.fields[key]
+            if(fieldMessageClass.resolvedType){
+                childMessageClass = fieldMessageClass.resolvedType;
+            }else if (messageClass[fieldMessageClass.type]){
+                childMessageClass = messageClass[fieldMessageClass.type];
+            }else {
+                try {
+                    childMessageClass = root.lookupTypeOrEnum(ROOT_PREFIX + "." + fieldMessageClass.type);
+                } catch (e) {
+                    console.error("lookup fail", e.message);
+                    try {
+                        childMessageClass = root.lookupTypeOrEnum(ROOT_PREFIX_2 + "." + fieldMessageClass.type);
+                    }catch (e) {
+                        console.error("lookup fail", e.message);
+                        childMessageClass = messageClass;
+                    }
+                }
+            }
+            if(Array.isArray(value)){
+                let isNumArr = false
+                if (fieldMessageClass.type == "uint64" || fieldMessageClass.type == "uint32" || fieldMessageClass.type == "fixed64" || fieldMessageClass.type == "fixed32"){
+                    isNumArr = true
+                }
+                value = parseMessageArray(value, childMessageClass, isNumArr);
+            }
+            else{
+                [value, _] = parseMessageObj(value, childMessageClass);
+            }
+        }
+        else if(valueType === 'string') {
+            let fieldType = messageClass.fields[key].type;
+            if(fieldType == 'string') {}
+            else if(fieldType == 'bytes') {}
+            else if (fieldType == 'uint64') {
+                value = Number(value)
+            }else if (fieldType == 'fixed64') {
+                value = Number(value)
+            }else if (fieldType == 'int64') {
+                value = Number(value)
+            }
+            else {
+                value = root.lookupTypeOrEnum(fieldType).values[value];
+            }
+        }
+        parsedMessage[key] = value;
+    }
+    return [parsedMessage, messageClass];
+
+    /*
   const messageClass = root.lookupTypeOrEnum(messageKey.join('.'));
   const parsedMessage = {};
   for(let i=0, l=keys.length, _; i<l; ++i) {
@@ -201,8 +281,8 @@ const parseMessageObj = messageObj => {
     }
     parsedMessage[key] = value;
   }
-
   return [parsedMessage, messageClass];
+  */
 };
 
 const getTrayItem = async (uuid, guid, folder) => {
@@ -228,7 +308,7 @@ const getTrayItem = async (uuid, guid, folder) => {
   */
     try {
       message = await xhr({
-        url: TRAY_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
+        url: TRAY_ITEM_URL.replace('{UUID}', encodeURIComponent(uuid)),
         responseType: 'json',
         headers: {
           'Accept-Language': 'en-US,en;q=0.9',
@@ -247,8 +327,14 @@ const getTrayItem = async (uuid, guid, folder) => {
   if(message === null || typeof message.error !== 'undefined')
     throw "Can't download tray file. This item was most probably deleted.";
 
-  const [parsedMessage, messageClass] = parseMessageObj(message);
+  const [parsedMessage, messageClass] = parseMessageObj(message, root.lookupTypeOrEnum(ROOT_TRAYMETADATA_PREFIX));
   parsedMessage.id = getRandomId();
+
+  let errmsg = messageClass.verify(parsedMessage);
+  if(errmsg){
+      throw Error(errmsg);
+  }
+
 
   let additional = 0;
   if(parsedMessage.type === EXCHANGE_BLUEPRINT)
@@ -283,7 +369,7 @@ const getDataItem = async (guid, folder, type, id) => {
   let response;
   try {
     response = await xhr({
-      url: DATA_ITEM_URL.replace('{FOLDER}', folder).replace('{GUID}', guid),
+      url:  DATA_ITEM_URL_2.replace('{FOLDER}', folder).replace('{GUID}', guid),
       responseType: 'arraybuffer'
     });
   }
@@ -358,13 +444,14 @@ const newCanvas = (width, height) => {
 };
 
 const getImages = async (guid, folder, type, additional) => {
-  const URL_TEMPLATE = IMAGE_URL.replace('{FOLDER}', folder).replace('{GUID}', guid).replace('{TYPE}', type - 1);
+  const URL_TEMPLATE = IMAGE_URL_3.replace('{FOLDER}', folder).replace('{GUID}', guid).replace('{TYPE}', type - 1);
   const big = newCanvas(BIG_WIDTH, BIG_HEIGHT);
   const small = newCanvas(SMALL_WIDTH, SMALL_HEIGHT);
   const images = [];
   for(let i=0; i<=additional; ++i) {
     let url = URL_TEMPLATE.replace('{INDEX}', i.toString().padStart(2, '0'));
     let img = await loadImage(url);
+
     let x, y, width, height;
 
     if(type == EXCHANGE_BLUEPRINT || (type == EXCHANGE_HOUSEHOLD && i > 0)) {
