@@ -28,6 +28,16 @@ const FORMAT_DICT = {
     bold_e: '',
     head_s: '#',
     head_e: ''
+  },
+  'Reddit': {
+    start: '',
+    end: '',
+    bold_s: '**',
+    bold_e: '**',
+    head_s: '**',
+    head_e: '**',
+    prefix: '> ',
+    suffix: '  '
   }
 };
 
@@ -108,8 +118,12 @@ const rawReport = (info, f) => {
     else
       report += name + ': ' + f.bold_s + value + f.bold_e + '\n';
   }
+  report += f.end;
+  if(typeof f.prefix === "string") {
+    report = f.prefix + report.split("\n").join(f.suffix + "\n" + f.prefix);
+  }
 
-  return report + f.end;
+  return report;
 };
 
 // generate reports for all formats
