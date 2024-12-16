@@ -1,9 +1,5 @@
 (async () => {
 
-let q = window.location.search;
-const FORMAT = (q.indexOf('disqus') > -1 ? 'Disqus' : (q.indexOf('discord') > -1 ? 'Discord' : (q.indexOf('forum') > -1 ? 'Forum' : 'NONE')))
-q = undefined;
-
 const FORMAT_DICT = {
   'Forum': {
     start: '[spoiler="report"]\n',
@@ -40,6 +36,15 @@ const FORMAT_DICT = {
     suffix: '  '
   }
 };
+
+const FORMAT = (q => {
+  for(const key of Object.keys(FORMAT_DICT)) {
+    if(q.indexOf(key.toLowerCase()) > -1) {
+      return key;
+    }
+  }
+  return 'NONE';
+})(window.location.search);
 
 const LANGUAGE_DICT = {
   'cs_cz': 'cze_cz',
