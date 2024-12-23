@@ -37,7 +37,7 @@ const FORMAT_DICT = {
   },
   'Reddit-html': {
     start: '<blockquote>',
-    end: '</blockquote><p>Reddit sucks, delete the duplicated text below',
+    end: '</blockquote><p>Reddit sucks, delete the duplicated text below:<code>',
     bold_s: '<b>',
     bold_e: '</b>',
     head_s: '<b>',
