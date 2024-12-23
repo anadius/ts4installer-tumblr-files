@@ -34,6 +34,16 @@ const FORMAT_DICT = {
     head_e: '**',
     prefix: '> ',
     suffix: '  '
+  },
+  'Reddit-html': {
+    start: '<blockquote>',
+    end: '</blockquote><p>Reddit sucks, delete the duplicated text below',
+    bold_s: '<b>',
+    bold_e: '</b>',
+    head_s: '<b>',
+    head_e: '</b>',
+    prefix: ' ',
+    suffix: '<br>'
   }
 };
 
@@ -133,11 +143,23 @@ const rawReport = (info, f) => {
 
 // generate reports for all formats
 const generateReports = (info) => {
+  const HTML = {};
   for(let formatName of Object.keys(FORMAT_DICT)) {
+    if(!formatName.endsWith("-html")) {
+      continue;
+    }
+    const f = FORMAT_DICT[formatName], report = rawReport(info, f);
+    HTML[formatName.substring(0, formatName.length - "-html".length)] = report;
+  }
+  for(let formatName of Object.keys(FORMAT_DICT)) {
+    if(formatName.endsWith("-html")) {
+      continue;
+    }
     let f = FORMAT_DICT[formatName], report = rawReport(info, f),
         $card = $('.template > .card').clone();
 
     $card.find('textarea').val(report)
+      [0].html_report = HTML[formatName]; // set it for DOM element, not JQuery object
     $card.find('button')
       .attr('data-target', `#c-${formatName}`)
       .html(formatName);
@@ -767,6 +789,9 @@ $('#report').on('copy', e => {
     downloadBlob(new Blob([result]), 'validator_result.yaml');
   }
   e.originalEvent.clipboardData.setData('text/plain', result);
+  if(typeof e.target.html_report !== 'undefined') {
+    e.originalEvent.clipboardData.setData('text/html', e.target.html_report);
+  }
   e.preventDefault();
 });
 
