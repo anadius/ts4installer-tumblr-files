@@ -173,8 +173,7 @@ const generateReports = (info) => {
 };
 
 const alwaysHash = path => (
-  path.match(/\/bin(?:_le)?\/(?:ts4(?:_x64)?\.exe|anadius\d|orangeemu)/) !== null
-  // path.endsWith('.exe') && path.indexOf('/bin/ts4') > -1
+  path.match(/\/bin(?:_le)?\/(?:ts4(?:[^\/]*)?\.exe|anadius|check_version|codex|orangeemu|rune|origin_emu)/) !== null
 );
 
 // calculate missing hashes and return simplified object
