@@ -78,7 +78,7 @@ const LANGUAGE_DICT = {
 };
 
 const UNKNOWN_FILES_FILTERING = [
-  ['Steam files', /^(?:__overlay\/(?:overlayinjector\.exe|steam_api\.dll)|data\/client\/tmp.txt|debug.log|eastore.ini|installscript.vdf|steam_appid.txt)$/i],
+  ['Steam files', /^(?:__overlay\/(?:overlayinjector\.exe|steam_api\.dll)|data\/client\/tmp.txt|debug.log|eastore.ini|installscript.vdf|steam_appid.txt|eaappinstaller_installscript.vdf)$/i],
   ['FitGirl repack files', /^(?:_redist\/(?:dxwebsetup\.exe|fitgirl\.md5|quicksfv\.(?:exe|ini)|vc_?redist.*?\.exe)|language changer\/.*?\.reg)$/i],
   ['Uninstaller files', /^unins\d{3}\.(?:dat|exe)$/i],
   ['Mac files', /^sims4_movedlc.log$/i],
