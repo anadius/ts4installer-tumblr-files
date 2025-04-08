@@ -8,7 +8,7 @@
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
 // @connect     thesims-api.ea.com
-// @version     2.1.13
+// @version     2.2.0
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -41,6 +41,18 @@ const EXTENSIONS = {
   [EXCHANGE_HOUSEHOLD]: ['Household', 'householdbinary', 'hhi', 'sgi'],
   [EXCHANGE_BLUEPRINT]: ['Lot', 'blueprint', 'bpi', 'bpi'],
   [EXCHANGE_ROOM]: ['Room', 'room', 'rmi', null],
+  [EXCHANGE_TATOO]: ['Tattoo', 'part', 'pti', 'pti'],
+};
+const IMAGE_TYPE = {
+  [EXCHANGE_HOUSEHOLD]: 0,
+  [EXCHANGE_BLUEPRINT]: 1,
+  [EXCHANGE_ROOM]: 2,
+  [EXCHANGE_TATOO]: 3,
+};
+const ADDITIONAL_IMAGE_GROUP = {
+  [EXCHANGE_HOUSEHOLD]: 0x10,
+  [EXCHANGE_BLUEPRINT]: 0x100,
+  [EXCHANGE_TATOO]: 0x10,
 };
 
 const BIG_WIDTH = 591;
@@ -386,7 +398,7 @@ const newCanvas = (width, height) => {
 };
 
 const getImages = async (guid, folder, type, additional) => {
-  const URL_TEMPLATE = IMAGE_URL.replace('{FOLDER}', folder).replace('{GUID}', guid).replace('{TYPE}', type - 1);
+  const URL_TEMPLATE = IMAGE_URL.replace('{FOLDER}', folder).replace('{GUID}', guid).replace('{TYPE}', IMAGE_TYPE[type]);
   const big = newCanvas(BIG_WIDTH, BIG_HEIGHT);
   const small = newCanvas(SMALL_WIDTH, SMALL_HEIGHT);
   const images = [];
@@ -439,7 +451,6 @@ const downloadItem = async scope => {
     const zip = new JSZip();
 
     const [trayItem, type, id, additional, author, title] = await getTrayItem(uuid, guid, folder);
-    if(type === EXCHANGE_TATOO) throw "Downloading tattoos is not supported yet!";
     zip.file(generateName(type, id, 'trayitem'), trayItem);
 
     const [typeStr, dataExt, imageExt, additionalExt] = EXTENSIONS[type];
@@ -454,7 +465,7 @@ const downloadItem = async scope => {
       let newId = id;
       if(i >= 2) {
         let j = i - 1;
-        group += (1 << (4 * type)) * j;
+        group += ADDITIONAL_IMAGE_GROUP[type] * j;
         if(type == EXCHANGE_HOUSEHOLD)
           newId = newId.add(j);
       }
