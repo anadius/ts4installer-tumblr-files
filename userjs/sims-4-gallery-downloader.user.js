@@ -8,7 +8,7 @@
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
 // @connect     thesims-api.ea.com
-// @version     2.1.12
+// @version     2.1.13
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -16,7 +16,7 @@
 // @grant       GM.getResourceUrl
 // @grant       GM_getResourceURL
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/sims-4-gallery-downloader.png
-// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.105.332
+// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.113.291
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require     https://cdn.jsdelivr.net/npm/long@4.0.0/dist/long.js#sha256-Cp9yM71yBwlF4CLQBfDKHoxvI4BoZgQK5aKPAqiupEQ=
 // @require     https://cdn.jsdelivr.net/npm/file-saver@2.0.1/dist/FileSaver.min.js#sha256-Sf4Tr1mzejErqH+d3jzEfBiRJAVygvjfwUbgYn92yOU=
@@ -36,10 +36,11 @@ const IMAGE_URL = 'https://athena.thesims.com/v2/images/{TYPE}/{FOLDER}/{GUID}/{
 const EXCHANGE_HOUSEHOLD = 1;
 const EXCHANGE_BLUEPRINT = 2;
 const EXCHANGE_ROOM = 3;
+const EXCHANGE_TATOO = 5;
 const EXTENSIONS = {
   [EXCHANGE_HOUSEHOLD]: ['Household', 'householdbinary', 'hhi', 'sgi'],
   [EXCHANGE_BLUEPRINT]: ['Lot', 'blueprint', 'bpi', 'bpi'],
-  [EXCHANGE_ROOM]: ['Room', 'room', 'rmi', null]
+  [EXCHANGE_ROOM]: ['Room', 'room', 'rmi', null],
 };
 
 const BIG_WIDTH = 591;
@@ -297,11 +298,27 @@ const getDataItem = async (guid, folder, type, id) => {
   }
   if(type === EXCHANGE_HOUSEHOLD) {
     const messageClass = root.lookupTypeOrEnum('EA.Sims4.Network.FamilyData');
-    const prefix = new Uint8Array(response, 0, 4); // read first 4 bytes
+    let messageOffset, dataSuffixOffset;
+
     const view = new DataView(response);
-    let len = view.getUint32(4, true); // from next 4 bytes read length
-    const message = messageClass.decode(new Uint8Array(response, 8, len)); // read and decode message
-    const suffix = new Uint8Array(response, 8 + len); // read the rest
+    const dataVersion = view.getUint32(0, true); // read the format version
+
+    if(dataVersion < 2) {
+      messageOffset = 8;
+      dataSuffixOffset = response.byteLength;
+    }
+    else {
+      const mainItemLength = view.getUint32(4, true);
+      messageOffset = 16;
+      dataSuffixOffset = 4 + mainItemLength;
+    }
+
+    const messageLength = view.getUint32(messageOffset - 4, true); // read message length
+    const message = messageClass.decode(new Uint8Array(response, messageOffset, messageLength)); // read and decode message
+    // read the suffixes
+    const messageSuffixOffset = messageOffset + messageLength;
+    const messageSuffix = new Uint8Array(response, messageSuffixOffset, dataSuffixOffset - messageSuffixOffset);
+    const dataSuffix = new Uint8Array(response, dataSuffixOffset);
 
     const newIdsDict = {};
     const sims = message.family_account.sim;
@@ -321,11 +338,16 @@ const getDataItem = async (guid, folder, type, id) => {
 
     try {
       const editedMessage = new Uint8Array(messageClass.encode(message).finish());
-      const resultArray = new Uint8Array(8 + editedMessage.length + suffix.length);
-      resultArray.set(prefix);
-      (new DataView(resultArray.buffer)).setUint32(4, editedMessage.length, true);
-      resultArray.set(editedMessage, 8);
-      resultArray.set(suffix, 8 + editedMessage.length);
+      const resultArray = new Uint8Array(messageOffset + editedMessage.length + messageSuffix.length + dataSuffix.length);
+      const resultView = new DataView(resultArray.buffer);
+      resultView.setUint32(0, dataVersion, true);
+      if(dataVersion >= 2) {
+        resultView.setUint32(4, 8 + editedMessage.length + messageSuffix.length, true);
+      }
+      resultView.setUint32(messageOffset - 4, editedMessage.length, true);
+      resultArray.set(editedMessage, messageOffset);
+      resultArray.set(messageSuffix, messageOffset + editedMessage.length);
+      resultArray.set(dataSuffix, messageOffset + editedMessage.length + messageSuffix.length);
       return resultArray.buffer;
     }
     catch(err) {
@@ -417,6 +439,7 @@ const downloadItem = async scope => {
     const zip = new JSZip();
 
     const [trayItem, type, id, additional, author, title] = await getTrayItem(uuid, guid, folder);
+    if(type === EXCHANGE_TATOO) throw "Downloading tattoos is not supported yet!";
     zip.file(generateName(type, id, 'trayitem'), trayItem);
 
     const [typeStr, dataExt, imageExt, additionalExt] = EXTENSIONS[type];
