@@ -8,7 +8,7 @@
 // @connect     athena.thesims.com
 // @connect     www.thesims.com
 // @connect     thesims-api.ea.com
-// @version     2.2.0
+// @version     2.2.1
 // @namespace   anadius.github.io
 // @grant       unsafeWindow
 // @grant       GM.xmlHttpRequest
@@ -16,7 +16,7 @@
 // @grant       GM.getResourceUrl
 // @grant       GM_getResourceURL
 // @icon        https://anadius.github.io/ts4installer-tumblr-files/userjs/sims-4-gallery-downloader.png
-// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.113.291
+// @resource    bundle.json https://anadius.github.io/ts4installer-tumblr-files/userjs/bundle.min.json?version=1.119.109
 // @require     https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
 // @require     https://cdn.jsdelivr.net/npm/long@4.0.0/dist/long.js#sha256-Cp9yM71yBwlF4CLQBfDKHoxvI4BoZgQK5aKPAqiupEQ=
 // @require     https://cdn.jsdelivr.net/npm/file-saver@2.0.1/dist/FileSaver.min.js#sha256-Sf4Tr1mzejErqH+d3jzEfBiRJAVygvjfwUbgYn92yOU=
